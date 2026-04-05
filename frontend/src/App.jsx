@@ -9,6 +9,7 @@ import Dashboard from './features/dashboard/Dashboard';
 import Practice from './features/practice/Practice';
 import PracticeSession from './features/practice/PracticeSession';
 import Study from './features/study/Study';
+import StudyIsland from './features/study/StudyIsland';
 import StudySession from './features/study/StudySession';
 import Settings from './features/settings/Settings';
 
@@ -98,7 +99,11 @@ function App() {
             element={user ? <Study /> : <Navigate to="/" />}
           />
           <Route
-            path="/study/:topicId"
+            path="/study/:islandId"
+            element={user ? <StudyIsland /> : <Navigate to="/" />}
+          />
+          <Route
+            path="/study/:islandId/level/:levelId"
             element={user ? <StudySession /> : <Navigate to="/" />}
           />
 
