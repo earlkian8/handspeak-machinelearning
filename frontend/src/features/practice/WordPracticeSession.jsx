@@ -5,9 +5,10 @@ import Camera from '../../components/Camera';
 import { fetchJson, postJson } from '../../lib/api';
 import { findWordIndex, getNextWord, getPreviousWord, normalizeWordEntry } from '../../lib/vocabulary';
 
-const CAPTURE_INTERVAL_MS = 350;
-const REQUIRED_STREAK = 3;
-const DEFAULT_THRESHOLD = 0.72;
+const CAPTURE_INTERVAL_MS = 450;
+const REQUIRED_STREAK = 2;
+const MIN_FRAMES_FOR_VERIFY = 3;
+const DEFAULT_THRESHOLD = 0.66;
 
 export default function WordPracticeSession() {
   const { wordId } = useParams();
@@ -22,6 +23,11 @@ export default function WordPracticeSession() {
   const isSubmittingRef = useRef(false);
   const frameBufferRef = useRef([]);
 
+  const takeFrame = useCallback(() => {
+    if (!webcamRef.current) return null;
+    return webcamRef.current.captureFrame?.() || webcamRef.current.getScreenshot?.() || null;
+  }, []);
+
   const advanceToNextWord = useCallback(() => {
     setTimeout(() => {
       if (nextWord) {
@@ -34,8 +40,8 @@ export default function WordPracticeSession() {
 
   const verifyCurrentFrames = useCallback(async (triggeredByStop = false) => {
     if (isSubmittingRef.current || !currentWord) return;
-    if (frameBufferRef.current.length < 5) {
-      setStatus(`Need ${5 - frameBufferRef.current.length} more frame(s) before checking`);
+    if (frameBufferRef.current.length < MIN_FRAMES_FOR_VERIFY) {
+      setStatus(`Need ${MIN_FRAMES_FOR_VERIFY - frameBufferRef.current.length} more frame(s) before checking`);
       return;
     }
 
@@ -91,13 +97,26 @@ export default function WordPracticeSession() {
     }
 
     setRecording(false);
+
+    const stopFrame = takeFrame();
+    if (stopFrame) {
+      frameBufferRef.current = [...frameBufferRef.current, stopFrame].slice(-5);
+    }
+
+    if (frameBufferRef.current.length > 0 && frameBufferRef.current.length < MIN_FRAMES_FOR_VERIFY) {
+      const padFrame = frameBufferRef.current[frameBufferRef.current.length - 1];
+      while (frameBufferRef.current.length < MIN_FRAMES_FOR_VERIFY) {
+        frameBufferRef.current.push(padFrame);
+      }
+    }
+
     if (frameBufferRef.current.length === 0) {
-      setStatus('No frames captured. Press record and keep your hand in frame.');
+      setStatus('No frames captured. The guide circle is only a helper, try centering your hand and hold for 1 second.');
       return;
     }
 
     await verifyCurrentFrames(true);
-  }, [recording, verifyCurrentFrames]);
+  }, [recording, verifyCurrentFrames, takeFrame]);
 
   useEffect(() => {
     let active = true;
@@ -142,12 +161,12 @@ export default function WordPracticeSession() {
     const intervalId = window.setInterval(async () => {
       if (isSubmittingRef.current || !webcamRef.current) return;
 
-      const screenshot = webcamRef.current.getScreenshot?.();
+      const screenshot = takeFrame();
       if (!screenshot) return;
 
       frameBufferRef.current = [...frameBufferRef.current, screenshot].slice(-5);
-      if (frameBufferRef.current.length < 5) {
-        setStatus('Collecting frames...');
+      if (frameBufferRef.current.length < MIN_FRAMES_FOR_VERIFY) {
+        setStatus(`Collecting frames ${frameBufferRef.current.length}/${MIN_FRAMES_FOR_VERIFY}...`);
         return;
       }
 
@@ -155,7 +174,7 @@ export default function WordPracticeSession() {
     }, CAPTURE_INTERVAL_MS);
 
     return () => window.clearInterval(intervalId);
-  }, [recording, currentWord, words.length, verifyCurrentFrames]);
+  }, [recording, currentWord, words.length, verifyCurrentFrames, takeFrame]);
 
   useEffect(() => {
     frameBufferRef.current = [];

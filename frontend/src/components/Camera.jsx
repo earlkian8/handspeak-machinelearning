@@ -13,9 +13,27 @@ const Camera = forwardRef(function Camera(_, ref) {
   const [hasPermission, setHasPermission] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  const captureFrame = useCallback(() => {
+    const screenshot = webcamRef.current?.getScreenshot?.();
+    if (screenshot) return screenshot;
+
+    const video = webcamRef.current?.video;
+    if (!video || !video.videoWidth || !video.videoHeight) return null;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const context = canvas.getContext('2d');
+    if (!context) return null;
+
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL('image/jpeg', 0.92);
+  }, []);
+
   useImperativeHandle(ref, () => ({
-    getScreenshot: () => webcamRef.current?.getScreenshot?.() || null,
-  }));
+    getScreenshot: captureFrame,
+    captureFrame,
+  }), [captureFrame]);
 
   useEffect(() => {
     navigator.mediaDevices
@@ -60,7 +78,10 @@ const Camera = forwardRef(function Camera(_, ref) {
       />
       {/* Hand guide overlay */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-        <div className="w-40 h-40 rounded-full border-2 border-dashed border-white/40" />
+        <div
+          className="rounded-full border-2 border-dashed border-white/40"
+          style={{ width: 'min(72vw, 320px)', height: 'min(72vw, 320px)' }}
+        />
       </div>
     </div>
   );

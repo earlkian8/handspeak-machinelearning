@@ -15,9 +15,10 @@ import {
   buildBossChallenge,
 } from './studyVoyage';
 
-const CAPTURE_INTERVAL_MS = 350;
-const REQUIRED_STREAK = 3;
-const DEFAULT_THRESHOLD = 0.72;
+const CAPTURE_INTERVAL_MS = 450;
+const REQUIRED_STREAK = 2;
+const MIN_FRAMES_FOR_VERIFY = 3;
+const DEFAULT_THRESHOLD = 0.66;
 
 export default function StudySession() {
   const { islandId, levelId } = useParams();
@@ -33,6 +34,11 @@ export default function StudySession() {
   const webcamRef = useRef(null);
   const frameBufferRef = useRef([]);
   const isSubmittingRef = useRef(false);
+
+  const takeFrame = useCallback(() => {
+    if (!webcamRef.current) return null;
+    return webcamRef.current.captureFrame?.() || webcamRef.current.getScreenshot?.() || null;
+  }, []);
 
   const island = getIslandById(islandId);
   const phraseLevel = island?.levels.find((level) => level.id === levelId) || null;
@@ -92,8 +98,8 @@ export default function StudySession() {
 
   const verifyCurrentFrames = useCallback(async (triggeredByStop = false) => {
     if (isSubmittingRef.current || !targetWord || isBossLevel || alreadyCompleted || !levelUnlocked) return;
-    if (frameBufferRef.current.length < 5) {
-      setStatus(`Need ${5 - frameBufferRef.current.length} more frame(s) before checking`);
+    if (frameBufferRef.current.length < MIN_FRAMES_FOR_VERIFY) {
+      setStatus(`Need ${MIN_FRAMES_FOR_VERIFY - frameBufferRef.current.length} more frame(s) before checking`);
       return;
     }
 
@@ -153,13 +159,27 @@ export default function StudySession() {
     setRecording(false);
     if (isBossLevel) return;
 
+    const stopFrame = takeFrame();
+    if (stopFrame) {
+      frameBufferRef.current = [...frameBufferRef.current, stopFrame].slice(-5);
+      setCapturedFrames(frameBufferRef.current.length);
+    }
+
+    if (frameBufferRef.current.length > 0 && frameBufferRef.current.length < MIN_FRAMES_FOR_VERIFY) {
+      const padFrame = frameBufferRef.current[frameBufferRef.current.length - 1];
+      while (frameBufferRef.current.length < MIN_FRAMES_FOR_VERIFY) {
+        frameBufferRef.current.push(padFrame);
+      }
+      setCapturedFrames(frameBufferRef.current.length);
+    }
+
     if (frameBufferRef.current.length === 0) {
-      setStatus('No frames captured. Press record and keep your hand in frame.');
+      setStatus('No frames captured. The guide circle is only a helper, try centering your hand and hold for 1 second.');
       return;
     }
 
     await verifyCurrentFrames(true);
-  }, [recording, isBossLevel, verifyCurrentFrames]);
+  }, [recording, isBossLevel, verifyCurrentFrames, takeFrame]);
 
   useEffect(() => {
     frameBufferRef.current = [];
@@ -176,14 +196,14 @@ export default function StudySession() {
     const intervalId = window.setInterval(async () => {
       if (isSubmittingRef.current || !webcamRef.current) return;
 
-      const screenshot = webcamRef.current.getScreenshot?.();
+      const screenshot = takeFrame();
       if (!screenshot) return;
 
       frameBufferRef.current = [...frameBufferRef.current, screenshot].slice(-5);
       setCapturedFrames(frameBufferRef.current.length);
 
-      if (frameBufferRef.current.length < 5) {
-        setStatus(`Collecting frames ${frameBufferRef.current.length}/5...`);
+      if (frameBufferRef.current.length < MIN_FRAMES_FOR_VERIFY) {
+        setStatus(`Collecting frames ${frameBufferRef.current.length}/${MIN_FRAMES_FOR_VERIFY}...`);
         return;
       }
 
@@ -191,7 +211,7 @@ export default function StudySession() {
     }, CAPTURE_INTERVAL_MS);
 
     return () => window.clearInterval(intervalId);
-  }, [recording, levelUnlocked, alreadyCompleted, isBossLevel, verifyCurrentFrames]);
+  }, [recording, levelUnlocked, alreadyCompleted, isBossLevel, verifyCurrentFrames, takeFrame]);
 
   useEffect(() => {
     if (!recording && !showSuccess && !alreadyCompleted && !isBossLevel && status === 'Ready to verify') {
@@ -323,7 +343,7 @@ export default function StudySession() {
               background: 'rgba(2,10,28,0.75)', border: '1px solid rgba(255,255,255,0.18)',
               borderRadius: 10, padding: '6px 10px', color: 'white', fontSize: 12, fontWeight: 800,
             }}>
-              Frames: {capturedFrames}/5
+              Frames: {capturedFrames}/{MIN_FRAMES_FOR_VERIFY}
             </div>
           )}
         </div>
