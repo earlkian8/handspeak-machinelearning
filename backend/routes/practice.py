@@ -1,17 +1,17 @@
-from fastapi import APIRouter
-from data.asl_data import ALPHABET_SIGNS, NUMBER_SIGNS, ALL_PRACTICE_SIGNS
+from fastapi import APIRouter, HTTPException
+from data.asl_data import ALL_PRACTICE_SIGNS, VOCABULARY_BY_ID
 
 router = APIRouter(prefix="/api/practice", tags=["practice"])
 
 
 @router.get("/alphabet")
 def get_alphabet():
-    return ALPHABET_SIGNS
+    return ALL_PRACTICE_SIGNS[:26]
 
 
 @router.get("/numbers")
 def get_numbers():
-    return NUMBER_SIGNS
+    return []
 
 
 @router.get("/all")
@@ -19,9 +19,22 @@ def get_all_practice():
     return ALL_PRACTICE_SIGNS
 
 
+@router.get("/words")
+def get_words():
+    return ALL_PRACTICE_SIGNS
+
+
 @router.get("/sign/{sign_id}")
 def get_sign(sign_id: str):
-    for s in ALL_PRACTICE_SIGNS:
-        if s["id"] == sign_id.upper():
-            return s
-    return {"error": "Sign not found"}
+    word = VOCABULARY_BY_ID.get(sign_id.lower())
+    if word:
+        return word
+    raise HTTPException(status_code=404, detail="Word not found")
+
+
+@router.get("/word/{word_id}")
+def get_word(word_id: str):
+    word = VOCABULARY_BY_ID.get(word_id.lower())
+    if word:
+        return word
+    raise HTTPException(status_code=404, detail="Word not found")

@@ -1,0 +1,34 @@
+CONVERSATIONAL_100 = [
+    # Greetings & Social (9) — Level 1: first things you say to anyone
+    "HELLO", "BYE", "THANKYOU", "PLEASE", "SORRY", "YES", "NO", "OK", "WELCOME",
+
+    # Pronouns (7) — Level 2: who is doing what
+    "I", "ME", "YOU", "WE", "HE", "THEY", "MY",
+
+    # Question Words (6) — Level 3: opens two-way conversation
+    "WHAT", "WHO", "WHERE", "WHEN", "WHY", "HOW",
+
+    # Core Verbs — Level 4-5: actions that drive every sentence
+    "WANT", "NEED", "HAVE", "GO", "COME", "LIKE", "LOVE", "KNOW", "SEE", "HELP",
+    "EAT", "DRINK", "SLEEP", "LEARN", "THINK", "FEEL", "TELL", "STOP", "FINISH",
+    "UNDERSTAND",
+
+    # Feelings & Adjectives — Level 6: describe how you feel and what things are like
+    "GOOD", "BAD", "HAPPY", "SAD", "ANGRY", "SCARED", "TIRED", "SICK",
+    "HUNGRY", "THIRSTY", "HOT", "COLD", "BIG", "SMALL",
+
+    # Time Words — Level 7: place actions in time
+    "NOW", "TODAY", "TOMORROW", "YESTERDAY", "MORNING", "NIGHT",
+    "AGAIN", "ALWAYS", "NEVER", "BEFORE",
+
+    # Essential Nouns — Level 8: people, places, and things
+    "WATER", "FAMILY", "MOTHER", "FATHER", "FRIEND", "HOME", "SCHOOL",
+    "WORK", "PHONE", "NAME", "DOCTOR", "MONEY", "SIGN",
+
+    # Connectors & Quantifiers — Level 9: join ideas into complex sentences
+    "AND", "BUT", "WITH", "FOR", "ALL", "MORE", "MANY", "SOME", "TOGETHER",
+
+    # Important Concepts — Level 9-10: round out real adult conversation
+    "IMPORTANT", "SAME", "DIFFERENT", "RIGHT", "WRONG", "BUSY", "STRONG",
+    "SAFE", "REMEMBER", "MEET", "WAIT", "LANGUAGE",
+]

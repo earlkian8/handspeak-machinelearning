@@ -211,15 +211,15 @@ export default function Dashboard({ user }) {
               {/* overlay label */}
               <div style={{ position:'absolute', top:14, left:16, background:'rgba(255,140,0,0.9)', backdropFilter:'blur(4px)', borderRadius:99, padding:'5px 14px', display:'flex', alignItems:'center', gap:6 }}>
                 <Hand size={13} color="white" />
-                <span style={{ fontSize:11, fontWeight:900, color:'white', textTransform:'uppercase', letterSpacing:'0.12em' }}>A–Z · 0–9</span>
+                <span style={{ fontSize:11, fontWeight:900, color:'white', textTransform:'uppercase', letterSpacing:'0.12em' }}>100 Words</span>
               </div>
             </div>
 
             {/* info */}
             <div style={{ padding:'22px 26px 26px', flex:1, display:'flex', flexDirection:'column' }}>
-              <h2 style={{ fontSize:22, fontWeight:900, color:'white', margin:'0 0 8px', textShadow:'0 1px 6px rgba(0,0,0,0.3)' }}>Practice Island</h2>
+              <h2 style={{ fontSize:22, fontWeight:900, color:'white', margin:'0 0 8px', textShadow:'0 1px 6px rgba(0,0,0,0.3)' }}>Word Practice</h2>
               <p style={{ fontSize:14, color:'rgba(255,255,255,0.7)', lineHeight:1.6, margin:'0 0 20px', flex:1 }}>
-                Master ASL fingerspelling — A to Z letters and 0 to 9 numbers — with real-time camera feedback on the sandy shore.
+                Practice the 100 target words with real-time camera feedback and model-based verification.
               </p>
               <button onClick={() => navigate('/practice')}
                 style={{
@@ -289,7 +289,7 @@ export default function Dashboard({ user }) {
               {/* overlay label */}
               <div style={{ position:'absolute', top:14, left:16, background:'rgba(14,165,233,0.9)', backdropFilter:'blur(4px)', borderRadius:99, padding:'5px 14px', display:'flex', alignItems:'center', gap:6 }}>
                 <BookOpen size={13} color="white" />
-                <span style={{ fontSize:11, fontWeight:900, color:'white', textTransform:'uppercase', letterSpacing:'0.12em' }}>5 Islands</span>
+                <span style={{ fontSize:11, fontWeight:900, color:'white', textTransform:'uppercase', letterSpacing:'0.12em' }}>Word Chapters</span>
               </div>
               {/* progress bar on card */}
               {stats.totalIslands > 0 && (
@@ -306,7 +306,7 @@ export default function Dashboard({ user }) {
             <div style={{ padding:'22px 26px 26px', flex:1, display:'flex', flexDirection:'column' }}>
               <h2 style={{ fontSize:22, fontWeight:900, color:'white', margin:'0 0 8px', textShadow:'0 1px 6px rgba(0,0,0,0.3)' }}>Study Voyage</h2>
               <p style={{ fontSize:14, color:'rgba(255,255,255,0.7)', lineHeight:1.6, margin:'0 0 20px', flex:1 }}>
-                Follow the whale across 5 islands — master ASL phrases, defeat island bosses, and earn XP on your deep-sea journey.
+                Follow the whale across word chapters — master target words, verify each gesture, and earn XP on your deep-sea journey.
               </p>
               <button onClick={() => navigate('/study')}
                 style={{

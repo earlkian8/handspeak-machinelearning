@@ -1,4 +1,4 @@
-import React, { useRef, useCallback, useState, useEffect } from 'react';
+import React, { useRef, useCallback, useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import Webcam from 'react-webcam';
 import { Camera as CameraIcon, Loader2 } from 'lucide-react';
 
@@ -8,10 +8,14 @@ const videoConstraints = {
   facingMode: 'user',
 };
 
-export default function Camera() {
+const Camera = forwardRef(function Camera(_, ref) {
   const webcamRef = useRef(null);
   const [hasPermission, setHasPermission] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  useImperativeHandle(ref, () => ({
+    getScreenshot: () => webcamRef.current?.getScreenshot?.() || null,
+  }));
 
   useEffect(() => {
     navigator.mediaDevices
@@ -24,7 +28,7 @@ export default function Camera() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center w-full h-full min-h-[260px] bg-slate-900 text-white flex-col gap-3">
+      <div className="flex items-center justify-center w-full h-full min-h-65 bg-slate-900 text-white flex-col gap-3">
         <Loader2 size={32} className="animate-spin text-[#42a5f5]" />
         <p className="text-sm text-white/60">Accessing camera...</p>
       </div>
@@ -33,7 +37,7 @@ export default function Camera() {
 
   if (hasPermission === false) {
     return (
-      <div className="flex items-center justify-center w-full h-full min-h-[260px] bg-slate-900 text-white flex-col gap-3">
+      <div className="flex items-center justify-center w-full h-full min-h-65 bg-slate-900 text-white flex-col gap-3">
         <CameraIcon size={44} className="text-white/30" />
         <p className="text-sm font-bold text-white/60">Camera access denied</p>
         <p className="text-xs text-white/40 text-center px-8">Please enable camera permissions to practice signs.</p>
@@ -42,7 +46,7 @@ export default function Camera() {
   }
 
   return (
-    <div className="relative w-full h-full min-h-[260px] bg-slate-900 overflow-hidden">
+    <div className="relative w-full h-full min-h-65 bg-slate-900 overflow-hidden">
       <Webcam
         ref={webcamRef}
         audio={false}
@@ -60,5 +64,7 @@ export default function Camera() {
       </div>
     </div>
   );
-}
+});
+
+export default Camera;
 

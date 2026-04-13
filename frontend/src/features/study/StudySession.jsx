@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { X, Circle, ArrowRight, CheckCircle, Crown, Lock, Star, Lightbulb } from 'lucide-react';
 import Camera from '../../components/Camera';
+import { postJson } from '../../lib/api';
 import {
   getIslandById,
   getInitialStudyProgress,
@@ -14,6 +15,10 @@ import {
   buildBossChallenge,
 } from './studyVoyage';
 
+const CAPTURE_INTERVAL_MS = 350;
+const REQUIRED_STREAK = 3;
+const DEFAULT_THRESHOLD = 0.72;
+
 export default function StudySession() {
   const { islandId, levelId } = useParams();
   const navigate = useNavigate();
@@ -21,6 +26,13 @@ export default function StudySession() {
   const [progress, setProgress] = useState(getInitialStudyProgress());
   const [showSuccess, setShowSuccess] = useState(false);
   const [imgOk, setImgOk] = useState(true);
+  const [status, setStatus] = useState('Ready to verify');
+  const [latestResult, setLatestResult] = useState(null);
+  const [matchStreak, setMatchStreak] = useState(0);
+  const [capturedFrames, setCapturedFrames] = useState(0);
+  const webcamRef = useRef(null);
+  const frameBufferRef = useRef([]);
+  const isSubmittingRef = useRef(false);
 
   const island = getIslandById(islandId);
   const phraseLevel = island?.levels.find((level) => level.id === levelId) || null;
@@ -75,6 +87,117 @@ export default function StudySession() {
   const phraseImgSrc = phraseId
     ? `https://www.lifeprint.com/asl101/gifs-animated/${phraseId.replace('_', '-')}.gif`
     : null;
+
+  const targetWord = phraseLevel?.label ? String(phraseLevel.label).replace(/\s+/g, '').toUpperCase() : '';
+
+  const verifyCurrentFrames = useCallback(async (triggeredByStop = false) => {
+    if (isSubmittingRef.current || !targetWord || isBossLevel || alreadyCompleted || !levelUnlocked) return;
+    if (frameBufferRef.current.length < 5) {
+      setStatus(`Need ${5 - frameBufferRef.current.length} more frame(s) before checking`);
+      return;
+    }
+
+    isSubmittingRef.current = true;
+    setStatus(`Checking ${panelTitle}...`);
+
+    try {
+      const response = await postJson('/api/gesture/verify', {
+        target_word: targetWord,
+        frames: frameBufferRef.current,
+        top_k: 5,
+        threshold: DEFAULT_THRESHOLD,
+      });
+
+      setLatestResult(response);
+
+      if (response.is_match) {
+        if (triggeredByStop) {
+          setStatus('Correct sign captured. Completing level...');
+          setMatchStreak(0);
+          setRecording(false);
+          markComplete();
+          return;
+        }
+
+        setMatchStreak((value) => {
+          const next = value + 1;
+          setStatus(`Correct sign ${next}/${REQUIRED_STREAK}`);
+          if (next >= REQUIRED_STREAK) {
+            setRecording(false);
+            markComplete();
+            return 0;
+          }
+          return next;
+        });
+      } else {
+        setMatchStreak(0);
+        setStatus(triggeredByStop
+          ? `Not matched. Closest match: ${response.best_match}`
+          : `Not yet. Closest match: ${response.best_match}`);
+      }
+    } catch (error) {
+      setMatchStreak(0);
+      setStatus(error.message || 'Verification failed');
+    } finally {
+      isSubmittingRef.current = false;
+    }
+  }, [targetWord, isBossLevel, alreadyCompleted, levelUnlocked, panelTitle]);
+
+  const handleRecordToggle = useCallback(async () => {
+    if (!recording) {
+      setStatus('Recording... hold the sign steady');
+      setRecording(true);
+      return;
+    }
+
+    setRecording(false);
+    if (isBossLevel) return;
+
+    if (frameBufferRef.current.length === 0) {
+      setStatus('No frames captured. Press record and keep your hand in frame.');
+      return;
+    }
+
+    await verifyCurrentFrames(true);
+  }, [recording, isBossLevel, verifyCurrentFrames]);
+
+  useEffect(() => {
+    frameBufferRef.current = [];
+    setCapturedFrames(0);
+    setMatchStreak(0);
+    setLatestResult(null);
+    setStatus('Ready to verify');
+    setRecording(false);
+  }, [levelId]);
+
+  useEffect(() => {
+    if (!recording || !levelUnlocked || alreadyCompleted || isBossLevel || !targetWord) return undefined;
+
+    const intervalId = window.setInterval(async () => {
+      if (isSubmittingRef.current || !webcamRef.current) return;
+
+      const screenshot = webcamRef.current.getScreenshot?.();
+      if (!screenshot) return;
+
+      frameBufferRef.current = [...frameBufferRef.current, screenshot].slice(-5);
+      setCapturedFrames(frameBufferRef.current.length);
+
+      if (frameBufferRef.current.length < 5) {
+        setStatus(`Collecting frames ${frameBufferRef.current.length}/5...`);
+        return;
+      }
+
+      await verifyCurrentFrames(false);
+    }, CAPTURE_INTERVAL_MS);
+
+    return () => window.clearInterval(intervalId);
+  }, [recording, levelUnlocked, alreadyCompleted, isBossLevel, verifyCurrentFrames]);
+
+  useEffect(() => {
+    if (!recording && !showSuccess && !alreadyCompleted && !isBossLevel && status === 'Ready to verify') {
+      setStatus('Recording stopped. Press record to continue.');
+    }
+  }, [recording, showSuccess, alreadyCompleted, isBossLevel, status]);
 
   const markComplete = () => {
     if (!levelUnlocked || alreadyCompleted) return;
@@ -158,7 +281,7 @@ export default function StudySession() {
           flex: 1, background: '#050d18', position: 'relative',
           borderRadius: '28px 0 0 28px', overflow: 'hidden', minHeight: 500,
         }}>
-          <Camera />
+          <Camera ref={webcamRef} />
 
           {/* recording hint */}
           <div style={{
@@ -179,7 +302,7 @@ export default function StudySession() {
           </div>
 
           {/* record button */}
-          <button onClick={() => setRecording(!recording)}
+          <button onClick={handleRecordToggle}
             style={{
               position: 'absolute', bottom: 28, left: '50%', transform: 'translateX(-50%)',
               width: 80, height: 80, borderRadius: '50%',
@@ -193,6 +316,16 @@ export default function StudySession() {
           >
             <Circle size={32} fill={recording ? 'white' : '#e63946'} color={recording ? 'white' : '#e63946'} />
           </button>
+
+          {!isBossLevel && (
+            <div style={{
+              position: 'absolute', bottom: 122, left: '50%', transform: 'translateX(-50%)',
+              background: 'rgba(2,10,28,0.75)', border: '1px solid rgba(255,255,255,0.18)',
+              borderRadius: 10, padding: '6px 10px', color: 'white', fontSize: 12, fontWeight: 800,
+            }}>
+              Frames: {capturedFrames}/5
+            </div>
+          )}
         </div>
 
         {/* ── info panel ── */}
@@ -312,6 +445,33 @@ export default function StudySession() {
             <span><strong>Tip:</strong> {panelTip}</span>
           </div>
 
+          {!isBossLevel && (
+            <div style={{
+              borderRadius: 14,
+              background: latestResult?.is_match ? 'rgba(34,197,94,0.16)' : 'rgba(255,255,255,0.08)',
+              border: '1px solid rgba(255,255,255,0.14)',
+              padding: '11px 12px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 6,
+            }}>
+              <span style={{ fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 900, color: 'rgba(255,255,255,0.56)' }}>
+                Live Verification
+              </span>
+              <p style={{ margin: 0, fontSize: 14, color: 'white', fontWeight: 800 }}>{status}</p>
+              <p style={{ margin: 0, fontSize: 12, color: 'rgba(255,255,255,0.68)' }}>
+                {latestResult
+                  ? `Best: ${latestResult.best_match} · Similarity: ${latestResult.similarity.toFixed(3)}`
+                  : 'Press record and hold the target sign in frame.'}
+              </p>
+              {matchStreak > 0 && (
+                <p style={{ margin: 0, fontSize: 12, color: '#86efac', fontWeight: 800 }}>
+                  Correct streak: {matchStreak}/{REQUIRED_STREAK}
+                </p>
+              )}
+            </div>
+          )}
+
           {/* level dots */}
           <div style={{ display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap', flexShrink: 0 }}>
             {island.levels.map((level) => {
@@ -367,27 +527,29 @@ export default function StudySession() {
           {/* action button */}
           <button
             onClick={markComplete}
-            disabled={!levelUnlocked || alreadyCompleted}
+            disabled={!levelUnlocked || alreadyCompleted || (!isBossLevel && !latestResult?.is_match)}
             style={{
               width: '100%', padding: '16px 0', borderRadius: 18, border: 'none',
               background: isBossLevel
                 ? 'linear-gradient(135deg,#fbbf24,#f97316)'
                 : 'linear-gradient(135deg,#34d399,#22d3ee)',
               color: isBossLevel ? '#451a03' : '#064e3b',
-              fontSize: 16, fontWeight: 900, cursor: !levelUnlocked || alreadyCompleted ? 'not-allowed' : 'pointer',
-              opacity: !levelUnlocked || alreadyCompleted ? 0.5 : 1,
+              fontSize: 16,
+              fontWeight: 900,
+              cursor: !levelUnlocked || alreadyCompleted || (!isBossLevel && !latestResult?.is_match) ? 'not-allowed' : 'pointer',
+              opacity: !levelUnlocked || alreadyCompleted || (!isBossLevel && !latestResult?.is_match) ? 0.5 : 1,
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
               boxShadow: !levelUnlocked || alreadyCompleted ? 'none'
                 : isBossLevel ? '0 8px 28px rgba(251,191,36,0.55)' : '0 8px 28px rgba(52,211,153,0.45)',
               flexShrink: 0, fontFamily: "'Nunito',sans-serif",
               transition: 'transform 0.18s ease, opacity 0.2s ease',
             }}
-            onMouseEnter={e => { if (!(!levelUnlocked || alreadyCompleted)) { e.currentTarget.style.transform = 'translateY(-2px)'; } }}
+            onMouseEnter={e => { if (!(!levelUnlocked || alreadyCompleted || (!isBossLevel && !latestResult?.is_match))) { e.currentTarget.style.transform = 'translateY(-2px)'; } }}
             onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; }}
           >
             {isBossLevel
               ? <><Crown size={18} /> Defeat Boss</>  
-              : <>Complete Level <ArrowRight size={18} /></>}
+              : <>Verified Complete <ArrowRight size={18} /></>}
           </button>
         </div>
       </div>

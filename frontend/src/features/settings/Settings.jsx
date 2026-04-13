@@ -316,7 +316,7 @@ export default function Settings({ onLogout }) {
                   A gamified, ocean-themed app for learning American Sign Language. Explore islands, master phrases, defeat bosses, and embark on your Study Voyage!
                 </p>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  {['5 Islands', '25 Phrases', 'A–Z + 0–9', 'Real-time Camera'].map(t => (
+                  {['Word Chapters', '100 Words', 'Model Verification', 'Real-time Camera'].map(t => (
                     <span key={t} style={{ fontSize: 11, fontWeight: 800, color: '#60a5fa', background: 'rgba(96,165,250,0.13)', border: '1px solid rgba(96,165,250,0.3)', padding: '3px 10px', borderRadius: 99 }}>{t}</span>
                   ))}
                 </div>

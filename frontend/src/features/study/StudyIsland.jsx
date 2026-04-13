@@ -220,7 +220,7 @@ export default function StudyIsland() {
           )}
         </div>
 
-        {/* ── phrase level cards ── */}
+        {/* ── word level cards ── */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(220px,1fr))', gap: 14, marginBottom: 20 }}>
           {island.levels.map((level, idx) => {
             const completed = isLevelCompleted(progress, island.id, level.id);
@@ -368,7 +368,7 @@ export default function StudyIsland() {
 
           {!bossUnlocked && (
             <p style={{ margin: '10px 0 0', fontSize: 12, color: 'rgba(255,255,255,0.58)', paddingLeft: 64 }}>
-              Complete all phrase levels above to unlock this boss challenge.
+              Complete all word levels above to unlock this boss challenge.
             </p>
           )}
         </button>
