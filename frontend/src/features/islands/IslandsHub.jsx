@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Lock, Star, MessageCircle, BookOpen, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, MessageCircle } from 'lucide-react';
 import {
   getStoredStudyProgress,
   loadStudyProgress,
@@ -9,11 +9,13 @@ import {
   getIslandProgress,
 } from '../study/studyVoyage';
 import { useIslands } from '../../contexts/IslandsContext';
+import IslandNode from './IslandNode';
 
 export default function IslandsHub() {
   const navigate = useNavigate();
   const { islands: rawIslands, islandsLoading } = useIslands();
   const [progress, setProgress] = useState(() => getStoredStudyProgress());
+  const mapContainerRef = useRef(null);
 
   useEffect(() => {
     let active = true;
@@ -31,16 +33,32 @@ export default function IslandsHub() {
       ...island,
       unlocked,
       completed,
+      active: unlocked && !completed, // Currently active node
       doneLevels: islandProgress.completedLevelIds.length,
       totalLevels: island.levels.length,
     };
   }), [rawIslands, progress]);
 
-  const typeLabel = (type) => {
-    if (type === 'alphabet') return 'Alphabet';
-    if (type === 'conversation') return 'Conversation';
-    return 'Vocabulary';
-  };
+  // Auto-scroll to the currently active island
+  useEffect(() => {
+    if (!islandsLoading && islands.length > 0 && mapContainerRef.current) {
+      const activeIndex = islands.findIndex(i => i.active);
+      const targetIndex = activeIndex >= 0 ? activeIndex : 0;
+      
+      setTimeout(() => {
+        if (mapContainerRef.current) {
+          const container = mapContainerRef.current;
+          const islandWidth = 220; // Approx width of island node + margin
+          const offset = (targetIndex * islandWidth) - (container.clientWidth / 2) + (islandWidth / 2);
+          
+          container.scrollTo({
+            left: Math.max(0, offset),
+            behavior: 'smooth'
+          });
+        }
+      }, 500); // Wait for render
+    }
+  }, [islands, islandsLoading]);
 
   return (
     <div style={{
@@ -69,11 +87,11 @@ export default function IslandsHub() {
         </div>
       </header>
 
-      <section style={{ maxWidth: 1100, margin: '0 auto' }}>
+      <section style={{ maxWidth: 1100, margin: '0 auto', display: 'flex', flexDirection: 'column', height: '100%' }}>
         <div style={{
           background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(12px)',
           border: '1.5px solid rgba(255,255,255,0.18)', borderRadius: 22,
-          padding: '20px 24px', marginBottom: 28,
+          padding: '20px 24px', marginBottom: 40,
           display: 'flex', gap: 14, alignItems: 'flex-start',
         }}>
           <div style={{
@@ -86,113 +104,57 @@ export default function IslandsHub() {
           <div>
             <h2 style={{ margin: '0 0 6px', fontSize: 18, fontWeight: 900 }}>One journey, three ways to practice</h2>
             <p style={{ margin: 0, fontSize: 14, color: 'rgba(255,255,255,0.75)', lineHeight: 1.55 }}>
-              Each island gives you three modes: <strong>Learn</strong> the signs, <strong>Drill</strong> them for recall,
-              and <strong>Converse</strong> by replying to real prompts. Start with Greetings — it's where your first conversation lives.
+              Welcome to the HandSpeak archipelago! Journey from island to island. 
+              Each island unlocks new signs and real conversations. Scroll to explore your voyage map.
             </p>
           </div>
         </div>
 
         {islandsLoading && islands.length === 0 && (
           <div style={{ textAlign: 'center', padding: '40px 0', color: 'rgba(255,255,255,0.6)', fontSize: 14, fontWeight: 700 }}>
-            Loading islands…
+            Loading map…
           </div>
         )}
 
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-          gap: 18,
-        }}>
-          {islands.map((island) => {
-            const locked = !island.unlocked;
-            return (
-              <button
-                key={island.id}
-                onClick={() => !locked && navigate(`/islands/${island.id}`)}
-                disabled={locked}
-                style={{
-                  textAlign: 'left',
-                  background: locked ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.10)',
-                  backdropFilter: 'blur(12px)',
-                  border: `1.5px solid ${island.completed ? 'rgba(52,211,153,0.55)' : 'rgba(255,255,255,0.18)'}`,
-                  borderRadius: 22, padding: '18px 20px', cursor: locked ? 'not-allowed' : 'pointer',
-                  color: 'white', opacity: locked ? 0.55 : 1,
-                  display: 'flex', flexDirection: 'column', gap: 12,
-                  transition: 'transform 0.2s, box-shadow 0.2s',
-                }}
-                onMouseEnter={(e) => { if (!locked) { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 18px 40px rgba(0,0,0,0.35)'; } }}
-                onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none'; }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span style={{ fontSize: 28 }}>{island.icon}</span>
-                    <div>
-                      <div style={{ fontSize: 11, fontWeight: 900, color: 'rgba(255,255,255,0.55)', letterSpacing: '0.16em', textTransform: 'uppercase' }}>
-                        {typeLabel(island.type)}
-                      </div>
-                      <div style={{ fontSize: 17, fontWeight: 900 }}>{island.title}</div>
-                    </div>
-                  </div>
-                  {locked ? (
-                    <Lock size={16} color="rgba(255,255,255,0.55)" />
-                  ) : island.completed ? (
-                    <CheckCircle2 size={18} color="#34d399" />
-                  ) : (
-                    <Star size={16} color="#fbbf24" />
-                  )}
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                  {island.hasLearn && (
-                    <span style={{
-                      fontSize: 11, fontWeight: 900, padding: '3px 8px', borderRadius: 99,
-                      background: 'rgba(96,165,250,0.18)', color: '#93c5fd', letterSpacing: '0.1em', textTransform: 'uppercase',
-                    }}>
-                      <BookOpen size={10} style={{ display: 'inline', marginRight: 4 }} />
-                      Learn
-                    </span>
-                  )}
-                  {island.hasDrill && (
-                    <span style={{
-                      fontSize: 11, fontWeight: 900, padding: '3px 8px', borderRadius: 99,
-                      background: 'rgba(251,191,36,0.18)', color: '#fde68a', letterSpacing: '0.1em', textTransform: 'uppercase',
-                    }}>
-                      Drill
-                    </span>
-                  )}
-                  {island.hasConverse && (
-                    <span style={{
-                      fontSize: 11, fontWeight: 900, padding: '3px 8px', borderRadius: 99,
-                      background: 'rgba(52,211,153,0.22)', color: '#6ee7b7', letterSpacing: '0.1em', textTransform: 'uppercase',
-                    }}>
-                      <MessageCircle size={10} style={{ display: 'inline', marginRight: 4 }} />
-                      Converse
-                    </span>
-                  )}
-                </div>
-
-                <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.72)', lineHeight: 1.5 }}>
-                  {island.intro?.description || 'Master this island step by step.'}
-                </div>
-
-                <div>
-                  <div style={{ height: 6, borderRadius: 99, background: 'rgba(255,255,255,0.12)', overflow: 'hidden' }}>
-                    <div style={{
-                      height: '100%', borderRadius: 99,
-                      width: `${island.totalLevels ? Math.round((island.doneLevels / island.totalLevels) * 100) : 0}%`,
-                      background: 'linear-gradient(90deg,#34d399,#22d3ee)',
-                    }} />
-                  </div>
-                  <div style={{ fontSize: 11, fontWeight: 800, color: 'rgba(255,255,255,0.6)', marginTop: 6 }}>
-                    {island.doneLevels}/{island.totalLevels} levels
-                    {locked ? ' · Locked' : island.completed ? ' · Completed' : ''}
-                  </div>
-                </div>
-              </button>
-            );
-          })}
+        <div 
+          ref={mapContainerRef}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            overflowX: 'auto',
+            padding: '240px 80px 140px 80px', // Increased top padding heavily so tooltip doesn't get clipped by the overflow container
+            margin: '0 -24px', // Break out of container padding for edge-to-edge scrolling
+            WebkitOverflowScrolling: 'touch',
+            scrollbarWidth: 'none', // hide scrollbar for cleaner look
+            msOverflowStyle: 'none',
+            background: 'linear-gradient(to bottom, rgba(4,20,33,0) 0%, rgba(3,105,161,0.15) 50%, rgba(4,20,33,0) 100%)',
+            borderTop: '1px solid rgba(255,255,255,0.05)',
+            borderBottom: '1px solid rgba(255,255,255,0.05)',
+            boxShadow: 'inset 0 0 100px rgba(0,0,0,0.5)',
+          }}
+          className="hide-scrollbar"
+        >
+          {islands.map((island, index) => (
+            <IslandNode 
+              key={island.id}
+              island={island}
+              index={index}
+              isFirst={index === 0}
+              isLast={index === islands.length - 1}
+              locked={!island.unlocked}
+              completed={island.completed}
+              active={island.unlocked && !island.completed}
+              onClick={() => navigate(`/islands/${island.id}`)}
+            />
+          ))}
         </div>
       </section>
+
+      <style>{`
+        .hide-scrollbar::-webkit-scrollbar {
+          display: none;
+        }
+      `}</style>
     </div>
   );
 }
