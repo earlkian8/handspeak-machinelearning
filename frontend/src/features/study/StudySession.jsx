@@ -293,11 +293,11 @@ export default function StudySession() {
         </div>
       )}
 
-      <div style={{
+      <div
+        className="flex flex-col md:flex-row w-full max-w-[960px] max-h-[calc(100vh-40px)] overflow-y-auto md:overflow-hidden"
+        style={{
         position: 'relative', background: '#0d2240', borderRadius: 28,
         boxShadow: '0 24px 80px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.08)',
-        width: '100%', maxWidth: 960, maxHeight: 'calc(100vh - 40px)',
-        overflow: 'hidden', display: 'flex', flexDirection: 'row',
         animation: 'modal-enter 0.3s ease-out',
       }}>
 
@@ -318,10 +318,21 @@ export default function StudySession() {
         </button>
 
         {/* ── camera panel ── */}
-        <div style={{
-          flex: 1, background: '#050d18', position: 'relative',
-          borderRadius: '28px 0 0 28px', overflow: 'hidden', minHeight: 500,
-        }}>
+        <div
+          className="flex-1 relative overflow-hidden min-h-[500px]"
+          style={{
+            background: '#050d18',
+            borderRadius: '28px 28px 0 0',
+          }}
+        >
+          {/* md radius overrides */}
+          <style>{`
+            @media (min-width: 768px) {
+              .flex-1.relative {
+                border-radius: 28px 0 0 28px !important;
+              }
+            }
+          `}</style>
           <Camera ref={webcamRef} />
 
           {/* DEBUG CONTROLS */}
@@ -407,8 +418,10 @@ export default function StudySession() {
         </div>
 
         {/* ── info panel ── */}
-        <div style={{
-          width: 350, flexShrink: 0,
+        <div 
+          className="w-full md:w-[380px]"
+          style={{
+          flexShrink: 0,
           background: 'linear-gradient(180deg,#0f2a54 0%,#091a38 100%)',
           display: 'flex', flexDirection: 'column',
           padding: '32px 22px 20px', gap: 14, overflowY: 'auto',

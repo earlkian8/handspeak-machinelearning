@@ -153,7 +153,7 @@ export default function WordStudySession() {
 
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(2,10,28,0.88)', backdropFilter: 'blur(8px)', padding: 20, fontFamily: "'Nunito', sans-serif" }}>
-      <div style={{ position: 'relative', background: '#0d2240', borderRadius: 28, boxShadow: '0 24px 80px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.08)', width: '100%', maxWidth: 960, maxHeight: 'calc(100vh - 40px)', overflow: 'hidden', display: 'flex', flexDirection: 'row' }}>
+      <div className="flex flex-col md:flex-row w-full max-w-[960px] max-h-[calc(100vh-40px)] overflow-y-auto md:overflow-hidden" style={{ position: 'relative', background: '#0d2240', borderRadius: 28, boxShadow: '0 24px 80px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.08)' }}>
         <button onClick={() => navigate('/study')} style={{ position: 'absolute', top: 16, right: 16, zIndex: 10, width: 42, height: 42, borderRadius: '50%', background: 'rgba(255,255,255,0.15)', border: '1.5px solid rgba(255,255,255,0.25)', backdropFilter: 'blur(8px)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <X size={18} color="white" />
         </button>
@@ -230,7 +230,7 @@ export default function WordStudySession() {
           </div>
         </div>
 
-        <div style={{ width: 350, flexShrink: 0, background: 'linear-gradient(180deg,#0f2a54 0%,#091a38 100%)', display: 'flex', flexDirection: 'column', padding: '32px 22px 20px', gap: 14, overflowY: 'auto', borderLeft: '1px solid rgba(255,255,255,0.08)' }}>
+        <div className="w-full md:w-[380px]" style={{ flexShrink: 0, background: 'linear-gradient(180deg,#0f2a54 0%,#091a38 100%)', display: 'flex', flexDirection: 'column', padding: '32px 22px 20px', gap: 14, overflowY: 'auto', borderLeft: '1px solid rgba(255,255,255,0.08)' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ background: 'rgba(52,211,153,0.2)', border: '1px solid rgba(52,211,153,0.4)', borderRadius: 99, padding: '4px 14px', display: 'flex', alignItems: 'center', gap: 6 }}>
               <span style={{ fontSize: 10, fontWeight: 900, color: '#34d399', textTransform: 'uppercase', letterSpacing: '0.18em' }}>Study Word</span>

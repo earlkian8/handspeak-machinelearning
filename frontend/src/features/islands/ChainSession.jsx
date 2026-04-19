@@ -246,11 +246,11 @@ export default function ChainSession() {
       background: 'rgba(2,10,28,0.92)', backdropFilter: 'blur(10px)',
       padding: 20, fontFamily: "'Nunito', sans-serif",
     }}>
-      <div style={{
+      <div
+        className="flex flex-col md:flex-row w-full max-w-[1060px] max-h-[calc(100vh-40px)] overflow-y-auto md:overflow-hidden"
+        style={{
         position: 'relative', background: '#0d2240', borderRadius: 28,
         boxShadow: '0 24px 80px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.08)',
-        width: '100%', maxWidth: 1060, maxHeight: 'calc(100vh - 40px)',
-        overflow: 'hidden', display: 'flex', flexDirection: 'row',
       }}>
         <button onClick={() => navigate(`/islands/${islandId}`)}
           style={{ position: 'absolute', top: 16, right: 16, zIndex: 10, width: 42, height: 42, borderRadius: '50%', background: 'rgba(255,255,255,0.12)', border: '1.5px solid rgba(255,255,255,0.22)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -258,7 +258,19 @@ export default function ChainSession() {
         </button>
 
         {/* Camera */}
-        <div style={{ flex: 1, background: '#050d18', position: 'relative', borderRadius: '28px 0 0 28px', overflow: 'hidden', minHeight: 500 }}>
+        <div 
+          className="flex-1 relative overflow-hidden min-h-[400px] md:min-h-[500px]"
+          style={{ 
+            background: '#050d18', 
+            borderRadius: '28px 28px 0 0',
+          }}>
+          <style>{`
+            @media (min-width: 768px) {
+              .flex-1.relative {
+                border-radius: 28px 0 0 28px !important;
+              }
+            }
+          `}</style>
           <Camera ref={webcamRef} />
 
           {/* DEBUG CONTROLS */}
@@ -291,7 +303,7 @@ export default function ChainSession() {
         </div>
 
         {/* Right panel */}
-        <div style={{ width: 380, flexShrink: 0, background: 'linear-gradient(180deg,#0f2a54 0%,#091a38 100%)', display: 'flex', flexDirection: 'column', padding: '24px 20px 18px', gap: 12, overflowY: 'auto' }}>
+        <div className="w-full md:w-[380px]" style={{ flexShrink: 0, background: 'linear-gradient(180deg,#0f2a54 0%,#091a38 100%)', display: 'flex', flexDirection: 'column', padding: '24px 20px 18px', gap: 12, overflowY: 'auto' }}>
           {/* Header */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span style={{ fontSize: 10, fontWeight: 900, color: '#6ee7b7', textTransform: 'uppercase', letterSpacing: '0.2em' }}>
