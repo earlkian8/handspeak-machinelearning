@@ -11,6 +11,7 @@ load_backend_env()
 
 from routes import auth, practice, study
 from routes import gesture
+from routes import conversation
 from services.supabase_store import get_store
 
 configure_logging()
@@ -37,6 +38,7 @@ app.include_router(auth.router)
 app.include_router(practice.router)
 app.include_router(study.router)
 app.include_router(gesture.router)
+app.include_router(conversation.router)
 
 
 @app.middleware("http")

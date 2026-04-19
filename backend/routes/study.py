@@ -19,7 +19,21 @@ def _empty_progress(user_id: int) -> dict:
         "completed_phrases": [],
         "xp": 0,
         "level": 1,
+        "conversation": {"islands": {}},
     }
+
+
+def _ensure_conversation_block(progress: dict) -> dict:
+    """Guarantee the `conversation` block is present so the frontend never sees a missing key."""
+    if not isinstance(progress, dict):
+        return progress
+    conversation = progress.get("conversation")
+    if not isinstance(conversation, dict):
+        conversation = {}
+    if not isinstance(conversation.get("islands"), dict):
+        conversation["islands"] = {}
+    progress["conversation"] = conversation
+    return progress
 
 
 @router.get("/topics")
@@ -74,7 +88,7 @@ def get_progress(user_id: int):
             store.save_progress(user_id, progress)
         except RuntimeError as error:
             raise HTTPException(status_code=503, detail=str(error)) from error
-    return progress
+    return _ensure_conversation_block(progress)
 
 
 @router.post("/progress/{user_id}")

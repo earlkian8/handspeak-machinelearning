@@ -8,9 +8,11 @@ import Welcome from './features/auth/Welcome';
 import Dashboard from './features/dashboard/Dashboard';
 import Practice from './features/practice/WordPractice';
 import PracticeSession from './features/practice/WordPracticeSession';
-import Study from './features/study/Study';
 import StudyIsland from './features/study/StudyIsland';
 import StudySession from './features/study/StudySession';
+import IslandsHub from './features/islands/IslandsHub';
+import IslandOverview from './features/islands/IslandOverview';
+import ReplyQuestSession from './features/islands/ReplyQuestSession';
 import Settings from './features/settings/Settings';
 
 function App() {
@@ -18,7 +20,6 @@ function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check for existing session
     const stored = localStorage.getItem('handspeak_user');
     if (stored) {
       setUser(JSON.parse(stored));
@@ -50,70 +51,38 @@ function App() {
     );
   }
 
+  const guard = (element) => (user ? element : <Navigate to="/" />);
+
   return (
     <Router>
       <div className="min-h-screen">
         <Routes>
           {/* Auth */}
-          <Route
-            path="/"
-            element={
-              user ? <Navigate to="/dashboard" /> : <Login onLogin={handleLogin} />
-            }
-          />
-          <Route
-            path="/signup"
-            element={
-              user ? <Navigate to="/dashboard" /> : <SignUp onLogin={handleLogin} />
-            }
-          />
+          <Route path="/" element={user ? <Navigate to="/dashboard" /> : <Login onLogin={handleLogin} />} />
+          <Route path="/signup" element={user ? <Navigate to="/dashboard" /> : <SignUp onLogin={handleLogin} />} />
 
           {/* Onboarding */}
-          <Route
-            path="/welcome"
-            element={
-              user ? (
-                <Welcome user={user} onProfileComplete={handleProfileComplete} />
-              ) : (
-                <Navigate to="/" />
-              )
-            }
-          />
+          <Route path="/welcome" element={user ? <Welcome user={user} onProfileComplete={handleProfileComplete} /> : <Navigate to="/" />} />
 
-          {/* Main app */}
-          <Route
-            path="/dashboard"
-            element={user ? <Dashboard user={user} /> : <Navigate to="/" />}
-          />
+          {/* Main hub */}
+          <Route path="/dashboard" element={guard(<Dashboard user={user} />)} />
 
-          {/* Practice */}
-          <Route
-            path="/practice"
-            element={user ? <Practice /> : <Navigate to="/" />}
-          />
-          <Route path="/practice/:wordId" element={user ? <PracticeSession /> : <Navigate to="/" />} />
+          {/* Unified Islands journey — Phase 1 */}
+          <Route path="/islands" element={guard(<IslandsHub />)} />
+          <Route path="/islands/:islandId" element={guard(<IslandOverview />)} />
+          <Route path="/islands/:islandId/converse" element={guard(<ReplyQuestSession />)} />
 
-          {/* Study */}
-          <Route
-            path="/study"
-            element={user ? <Study /> : <Navigate to="/" />}
-          />
-          <Route
-            path="/study/:islandId"
-            element={user ? <StudyIsland /> : <Navigate to="/" />}
-          />
-          <Route
-            path="/study/:islandId/level/:levelId"
-            element={user ? <StudySession /> : <Navigate to="/" />}
-          />
+          {/* Learn mode (reuses existing Study Voyage screens under the Islands journey) */}
+          <Route path="/study" element={<Navigate to="/islands" replace />} />
+          <Route path="/study/:islandId" element={guard(<StudyIsland />)} />
+          <Route path="/study/:islandId/level/:levelId" element={guard(<StudySession />)} />
+
+          {/* Drill mode (reuses existing WordPractice flow) */}
+          <Route path="/practice" element={guard(<Practice />)} />
+          <Route path="/practice/:wordId" element={guard(<PracticeSession />)} />
 
           {/* Settings */}
-          <Route
-            path="/settings"
-            element={
-              user ? <Settings user={user} onLogout={handleLogout} /> : <Navigate to="/" />
-            }
-          />
+          <Route path="/settings" element={guard(<Settings user={user} onLogout={handleLogout} />)} />
 
           {/* Catch all */}
           <Route path="*" element={<Navigate to="/" />} />

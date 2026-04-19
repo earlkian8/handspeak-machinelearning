@@ -107,6 +107,35 @@ class SupabaseStore:
                 response_payload JSONB NOT NULL DEFAULT '{}'::jsonb,
                 created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
             );
+
+            CREATE TABLE IF NOT EXISTS conversation_sessions (
+                id BIGSERIAL PRIMARY KEY,
+                user_id BIGINT NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
+                island_id TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'in_progress',
+                prompt_ids JSONB NOT NULL DEFAULT '[]'::jsonb,
+                summary JSONB NOT NULL DEFAULT '{}'::jsonb,
+                started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                completed_at TIMESTAMPTZ
+            );
+
+            CREATE INDEX IF NOT EXISTS conversation_sessions_user_idx
+                ON conversation_sessions(user_id);
+
+            CREATE TABLE IF NOT EXISTS conversation_attempts (
+                id BIGSERIAL PRIMARY KEY,
+                session_id BIGINT NOT NULL REFERENCES conversation_sessions(id) ON DELETE CASCADE,
+                user_id BIGINT REFERENCES app_users(id) ON DELETE SET NULL,
+                prompt_id TEXT NOT NULL,
+                expected_word TEXT NOT NULL,
+                matched_word TEXT,
+                is_correct BOOLEAN NOT NULL,
+                confidence NUMERIC(8, 6),
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            );
+
+            CREATE INDEX IF NOT EXISTS conversation_attempts_session_idx
+                ON conversation_attempts(session_id);
             """
 
             with self._connect() as connection:
@@ -240,6 +269,127 @@ class SupabaseStore:
         """
         row = self._fetchone(query, (user_id, Json(progress)))
         return row["progress"] if row else progress
+
+    # ── Conversation sessions (Phase 1 Reply Quest) ──────────────────────
+    def create_conversation_session(
+        self,
+        *,
+        user_id: int,
+        island_id: str,
+        prompt_ids: list[str],
+    ) -> dict[str, Any]:
+        query = """
+            INSERT INTO conversation_sessions (user_id, island_id, prompt_ids)
+            VALUES (%s, %s, %s)
+            RETURNING id, user_id, island_id, status, prompt_ids, summary, started_at, completed_at
+        """
+        row = self._fetchone(query, (user_id, island_id, Json(prompt_ids)))
+        if not row:
+            raise RuntimeError("Failed to create conversation session")
+        return dict(row)
+
+    def append_conversation_attempt(
+        self,
+        *,
+        session_id: int,
+        user_id: int | None,
+        prompt_id: str,
+        expected_word: str,
+        matched_word: str | None,
+        is_correct: bool,
+        confidence: float | None,
+    ) -> dict[str, Any]:
+        query = """
+            INSERT INTO conversation_attempts (
+                session_id, user_id, prompt_id, expected_word,
+                matched_word, is_correct, confidence
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            RETURNING id, session_id, prompt_id, expected_word, matched_word,
+                      is_correct, confidence, created_at
+        """
+        row = self._fetchone(
+            query,
+            (session_id, user_id, prompt_id, expected_word, matched_word, is_correct, confidence),
+        )
+        if not row:
+            raise RuntimeError("Failed to record conversation attempt")
+        return dict(row)
+
+    def get_conversation_session(self, session_id: int) -> dict[str, Any] | None:
+        self.ensure_schema()
+        with self._connect() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT id, user_id, island_id, status, prompt_ids, summary,
+                           started_at, completed_at
+                    FROM conversation_sessions
+                    WHERE id = %s
+                    """,
+                    (session_id,),
+                )
+                session_row = cursor.fetchone()
+                if not session_row:
+                    return None
+
+                cursor.execute(
+                    """
+                    SELECT id, prompt_id, expected_word, matched_word,
+                           is_correct, confidence, created_at
+                    FROM conversation_attempts
+                    WHERE session_id = %s
+                    ORDER BY id ASC
+                    """,
+                    (session_id,),
+                )
+                attempt_rows = cursor.fetchall()
+                connection.commit()
+
+        session = dict(session_row)
+        session["attempts"] = [dict(row) for row in attempt_rows]
+        return session
+
+    def complete_conversation_session(
+        self,
+        session_id: int,
+        summary: dict[str, Any],
+    ) -> None:
+        query = """
+            UPDATE conversation_sessions
+            SET status = 'completed',
+                summary = %s,
+                completed_at = NOW()
+            WHERE id = %s
+        """
+        self._execute(query, (Json(summary), session_id))
+
+    def update_user_conversation_progress(
+        self,
+        user_id: int,
+        island_id: str,
+        attempt_is_correct: bool,
+        session_completed: bool,
+        last_session_id: int | None,
+    ) -> dict[str, Any]:
+        """Merge per-island conversation counters into study_progress.progress JSONB."""
+        progress = self.get_or_create_progress(user_id) or {}
+        conversation = dict(progress.get("conversation") or {})
+        islands = dict(conversation.get("islands") or {})
+        island_state = dict(islands.get(island_id) or {})
+
+        island_state["prompts_attempted"] = int(island_state.get("prompts_attempted", 0)) + 1
+        if attempt_is_correct:
+            island_state["prompts_correct"] = int(island_state.get("prompts_correct", 0)) + 1
+        if session_completed:
+            island_state["sessions_completed"] = int(island_state.get("sessions_completed", 0)) + 1
+        if last_session_id is not None:
+            island_state["last_session_id"] = int(last_session_id)
+
+        islands[island_id] = island_state
+        conversation["islands"] = islands
+        progress = {**progress, "conversation": conversation}
+        return self.save_progress(user_id, progress)
 
     def record_gesture_verification(
         self,
