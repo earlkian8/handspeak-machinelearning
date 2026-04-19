@@ -236,6 +236,38 @@ export default function IslandNode({
               )}
             </div>
 
+            {island.situations && island.situations.length > 0 && (
+              <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: 8, marginTop: 8, textAlign: 'left' }}>
+                <div style={{ fontSize: 10, fontWeight: 900, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>
+                  📍 Situations
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                  {island.situations.map((sit, idx) => (
+                    <div key={idx} title={sit.description} style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'rgba(255,255,255,0.05)', padding: '4px 8px', borderRadius: 8 }}>
+                      <span style={{ fontSize: 14 }}>{sit.emoji}</span>
+                      <span style={{ fontSize: 11, color: '#e2e8f0', fontWeight: 600 }}>{sit.label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {island.situations && island.situations.length > 0 && (
+              <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: 8, marginTop: 8, textAlign: 'left' }}>
+                <div style={{ fontSize: 10, fontWeight: 900, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>
+                  📍 Situations
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                  {island.situations.map((sit, idx) => (
+                    <div key={idx} title={sit.description} style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'rgba(255,255,255,0.05)', padding: '4px 8px', borderRadius: 8 }}>
+                      <span style={{ fontSize: 14 }}>{sit.emoji}</span>
+                      <span style={{ fontSize: 11, color: '#e2e8f0', fontWeight: 600 }}>{sit.label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {island.masteryScores && island.masteryScores.is_unlocked && (
               <div style={{ marginTop: 10, marginBottom: 12, padding: '8px 10px', borderRadius: 10, background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.08)', textAlign: 'left' }}>
                 <div style={{ fontSize: 9, fontWeight: 900, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: 8 }}>Mastery Axes</div>

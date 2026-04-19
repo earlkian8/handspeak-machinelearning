@@ -21,6 +21,33 @@ CONVERSATION_ISLANDS: list[dict[str, Any]] = [
         "title": "Greetings & Openers",
         "icon": "🤝",
         "type": "conversation",
+        "situations": [
+            {
+                "emoji": "🏫",
+                "label": "School",
+                "description": "You're in a classroom asking for help or greeting teachers."
+            },
+            {
+                "emoji": "🛒",
+                "label": "Store",
+                "description": "You're shopping and need assistance or are paying at the register."
+            },
+            {
+                "emoji": "🚌",
+                "label": "Commute",
+                "description": "You're on public transportation engaging in small talk."
+            },
+            {
+                "emoji": "👋",
+                "label": "First Meeting",
+                "description": "You're meeting someone for the first time."
+            },
+            {
+                "emoji": "🆘",
+                "label": "Help Request",
+                "description": "You need urgent assistance or clarification."
+            }
+        ],
         "difficulty": "Beginner",
         "difficulty_rank": 0,
         "has_learn": False,

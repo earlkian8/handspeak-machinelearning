@@ -155,17 +155,13 @@ export default function IslandsHub() {
               display: 'flex',
               alignItems: 'center',
               overflowX: 'auto',
-              padding: '240px 80px 140px 80px', // Increased top padding heavily so tooltip doesn't get clipped by the overflow container
-              margin: '0 -24px', // Break out of container padding for edge-to-edge scrolling
+              padding: '360px 80px 140px 80px', // heavily increased top padding for larger tooltips
+              margin: '-120px -24px 0 -24px', // pull map up to counterbalance padding
               WebkitOverflowScrolling: 'touch',
               scrollbarWidth: 'none', // hide scrollbar for cleaner look
               msOverflowStyle: 'none',
-              background: 'linear-gradient(to bottom, rgba(4,20,33,0) 0%, rgba(3,105,161,0.15) 50%, rgba(4,20,33,0) 100%)',
-              borderTop: '1px solid rgba(255,255,255,0.05)',
-              borderBottom: '1px solid rgba(255,255,255,0.05)',
-              boxShadow: 'inset 0 0 100px rgba(0,0,0,0.5)',
-            }}
-            className="hide-scrollbar"
+              }}
+              className="hide-scrollbar"
           >
             {(islandsLoading || loadingProgress) || islands.length === 0 ? (
               <div style={{ display: 'flex', gap: 0, alignItems: 'center', opacity: 0.5 }}>

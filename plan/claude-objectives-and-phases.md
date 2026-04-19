@@ -197,7 +197,7 @@ Acceptance criteria:
 
 ---
 
-## Phase 5 - Situation cards and context-aware scoring
+## Phase 5 - Situation cards and context-aware scoring (done)
 
 Objective:
 Make conversations context-sensitive so correctness depends on scenario.
