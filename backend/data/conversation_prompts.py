@@ -23,6 +23,7 @@ GREETINGS_PROMPTS: list[dict[str, Any]] = [
         "expected_word": "hello",
         "acceptable_words": ["hello"],
         "intent_tag": "greet-open",
+        "response_type": "greet-open",
         "coaching_tip": "Open palm near the forehead, then move outward like a salute.",
     },
     {
@@ -33,6 +34,7 @@ GREETINGS_PROMPTS: list[dict[str, Any]] = [
         "expected_word": "morning",
         "acceptable_words": ["morning"],
         "intent_tag": "greet-open",
+        "response_type": "greet-open",
         "coaching_tip": "Non-dominant arm horizontal, dominant arm rises like a sunrise.",
     },
     {
@@ -43,6 +45,7 @@ GREETINGS_PROMPTS: list[dict[str, Any]] = [
         "expected_word": "fine",
         "acceptable_words": ["fine", "happy"],
         "intent_tag": "confirm",
+        "response_type": "confirm",
         "coaching_tip": "Open hand, thumb to chest, move outward.",
     },
     {
@@ -53,6 +56,7 @@ GREETINGS_PROMPTS: list[dict[str, Any]] = [
         "expected_word": "sad",
         "acceptable_words": ["sad"],
         "intent_tag": "react",
+        "response_type": "react",
         "coaching_tip": "Both hands, palms toward face, drift downward with a soft expression.",
     },
     {
@@ -63,6 +67,7 @@ GREETINGS_PROMPTS: list[dict[str, Any]] = [
         "expected_word": "thankyou",
         "acceptable_words": ["thankyou"],
         "intent_tag": "gratitude",
+        "response_type": "gratitude",
         "coaching_tip": "Fingertips touch chin, then move forward toward the person.",
     },
     {
@@ -73,6 +78,7 @@ GREETINGS_PROMPTS: list[dict[str, Any]] = [
         "expected_word": "bye",
         "acceptable_words": ["bye", "later"],
         "intent_tag": "greet-close",
+        "response_type": "greet-close",
         "coaching_tip": "Simple wave — open hand, fingers flexing together.",
     },
     {
@@ -83,6 +89,7 @@ GREETINGS_PROMPTS: list[dict[str, Any]] = [
         "expected_word": "later",
         "acceptable_words": ["later", "bye"],
         "intent_tag": "greet-close",
+        "response_type": "greet-close",
         "coaching_tip": "L-hand, rotate forward on the palm.",
     },
     {
@@ -93,6 +100,7 @@ GREETINGS_PROMPTS: list[dict[str, Any]] = [
         "expected_word": "yes",
         "acceptable_words": ["yes"],
         "intent_tag": "confirm",
+        "response_type": "confirm",
         "coaching_tip": "Fist nodding up and down like a head nodding yes.",
     },
 ]

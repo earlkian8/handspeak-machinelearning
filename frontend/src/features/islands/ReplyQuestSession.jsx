@@ -34,6 +34,7 @@ export default function ReplyQuestSession() {
   const [latestResult, setLatestResult] = useState(null);
   const [correctPromptIds, setCorrectPromptIds] = useState(() => new Set());
   const [sessionSummary, setSessionSummary] = useState(null);
+  const [typeResults, setTypeResults] = useState({ correct: 0, total: 0 });
 
   const webcamRef = useRef(null);
   const frameBufferRef = useRef([]);
@@ -113,6 +114,14 @@ export default function ReplyQuestSession() {
         });
       }
 
+      const rtb = response.response_type_breakdown;
+      if (rtb && rtb.type_correct !== null && rtb.type_correct !== undefined) {
+        setTypeResults((prev) => ({
+          correct: prev.correct + (rtb.type_correct ? 1 : 0),
+          total: prev.total + 1,
+        }));
+      }
+
       if (response.session_completed) {
         setSessionSummary({
           correct: response.correct_count,
@@ -189,6 +198,7 @@ export default function ReplyQuestSession() {
       <SummaryScreen
         island={island}
         summary={sessionSummary}
+        typeResults={typeResults}
         onAgain={() => window.location.reload()}
         onExit={() => navigate(`/islands/${islandId}`)}
       />
@@ -261,7 +271,14 @@ export default function ReplyQuestSession() {
             background: 'rgba(255,255,255,0.05)', border: '1.5px solid rgba(255,255,255,0.12)',
             borderRadius: 18, padding: '14px 16px',
           }}>
-            <div style={{ fontSize: 11, fontWeight: 900, color: 'rgba(255,255,255,0.55)', letterSpacing: '0.16em', textTransform: 'uppercase', marginBottom: 8 }}>NPC Prompt</div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+              <div style={{ fontSize: 11, fontWeight: 900, color: 'rgba(255,255,255,0.55)', letterSpacing: '0.16em', textTransform: 'uppercase' }}>NPC Prompt</div>
+              {currentPrompt.response_type_label && (
+                <span style={{ fontSize: 10, fontWeight: 900, padding: '2px 8px', borderRadius: 99, background: 'rgba(167,139,250,0.18)', color: '#c4b5fd', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                  {currentPrompt.response_type_label}
+                </span>
+              )}
+            </div>
             <div style={{ fontSize: 15, lineHeight: 1.55, color: 'white' }}>
               {currentPrompt.prompt_text}
             </div>
@@ -281,28 +298,60 @@ export default function ReplyQuestSession() {
             </div>
           )}
 
-          <div style={{
-            borderRadius: 14,
-            background: latestResult?.is_correct ? 'rgba(34,197,94,0.18)' : latestResult ? 'rgba(239,68,68,0.12)' : 'rgba(255,255,255,0.06)',
-            border: `1px solid ${latestResult?.is_correct ? 'rgba(52,211,153,0.45)' : latestResult ? 'rgba(239,68,68,0.35)' : 'rgba(255,255,255,0.12)'}`,
-            padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8,
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              {latestResult?.is_correct ? (
-                <CheckCircle2 size={16} color="#4ade80" />
-              ) : latestResult ? (
-                <AlertCircle size={16} color="#f87171" />
-              ) : null}
-              <span style={{ fontSize: 13, fontWeight: 800, color: 'white' }}>
-                {latestResult?.is_correct ? 'Correct reply' : latestResult ? 'Not a match' : 'Waiting for your reply'}
-              </span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{
+              borderRadius: 14,
+              background: latestResult?.is_correct ? 'rgba(34,197,94,0.18)' : latestResult ? 'rgba(239,68,68,0.12)' : 'rgba(255,255,255,0.06)',
+              border: `1px solid ${latestResult?.is_correct ? 'rgba(52,211,153,0.45)' : latestResult ? 'rgba(239,68,68,0.35)' : 'rgba(255,255,255,0.12)'}`,
+              padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                {latestResult?.is_correct ? (
+                  <CheckCircle2 size={16} color="#4ade80" />
+                ) : latestResult ? (
+                  <AlertCircle size={16} color="#f87171" />
+                ) : null}
+                <span style={{ fontSize: 13, fontWeight: 800, color: 'white' }}>
+                  {latestResult?.is_correct ? 'Correct reply' : latestResult ? 'Not a match' : 'Waiting for your reply'}
+                </span>
+              </div>
+              <p style={{ margin: 0, fontSize: 12.5, color: 'rgba(255,255,255,0.78)' }}>{status}</p>
+              {latestResult?.matched_word && (
+                <p style={{ margin: 0, fontSize: 11.5, color: 'rgba(255,255,255,0.55)' }}>
+                  Closest reading: {latestResult.matched_word.toUpperCase()} · {Number(latestResult.confidence || 0).toFixed(2)}
+                </p>
+              )}
             </div>
-            <p style={{ margin: 0, fontSize: 12.5, color: 'rgba(255,255,255,0.78)' }}>{status}</p>
-            {latestResult?.matched_word && (
-              <p style={{ margin: 0, fontSize: 11.5, color: 'rgba(255,255,255,0.55)' }}>
-                Closest reading: {latestResult.matched_word.toUpperCase()} · {Number(latestResult.confidence || 0).toFixed(2)}
-              </p>
-            )}
+
+            {/* Phase 2: response type breakdown */}
+            {latestResult?.response_type_breakdown && !latestResult.is_correct && (() => {
+              const rtb = latestResult.response_type_breakdown;
+              if (rtb.type_correct === false) {
+                return (
+                  <div style={{ borderRadius: 12, background: 'rgba(251,191,36,0.12)', border: '1px solid rgba(251,191,36,0.35)', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                      <span style={{ fontSize: 10, fontWeight: 900, color: '#fbbf24', textTransform: 'uppercase', letterSpacing: '0.12em' }}>Response type mismatch</span>
+                      {rtb.actual_type_label && (
+                        <span style={{ fontSize: 10, fontWeight: 800, color: 'rgba(251,191,36,0.75)' }}>
+                          You signed: {rtb.actual_type_label}
+                        </span>
+                      )}
+                    </div>
+                    <p style={{ margin: 0, fontSize: 12, color: '#fde68a', lineHeight: 1.5 }}>{rtb.explanation}</p>
+                  </div>
+                );
+              }
+              if (rtb.type_correct === true) {
+                return (
+                  <div style={{ borderRadius: 12, background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.3)', padding: '8px 12px' }}>
+                    <span style={{ fontSize: 11, fontWeight: 800, color: '#6ee7b7' }}>
+                      Right response type — just needs the exact word.
+                    </span>
+                  </div>
+                );
+              }
+              return null;
+            })()}
           </div>
 
           <div style={{ display: 'flex', gap: 8, marginTop: 'auto' }}>
@@ -348,7 +397,11 @@ function FullScreenMessage({ title, subtitle, onBack }) {
   );
 }
 
-function SummaryScreen({ island, summary, onAgain, onExit }) {
+function SummaryScreen({ island, summary, typeResults, onAgain, onExit }) {
+  const typeAccuracy = typeResults.total > 0
+    ? Math.round((typeResults.correct / typeResults.total) * 100)
+    : null;
+
   return (
     <div style={{ minHeight: '100vh', background: 'radial-gradient(ellipse at 30% 0%, #22d3ee 0%, #0369a1 60%, #041421 100%)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Nunito',sans-serif", padding: 24 }}>
       <div style={{ maxWidth: 460, width: '100%', background: 'rgba(255,255,255,0.08)', border: '1.5px solid rgba(255,255,255,0.18)', borderRadius: 24, padding: '28px 28px 24px', textAlign: 'center' }}>
@@ -362,7 +415,16 @@ function SummaryScreen({ island, summary, onAgain, onExit }) {
         <div style={{ display: 'flex', justifyContent: 'center', gap: 22, marginBottom: 24 }}>
           <Stat label="Prompts" value={`${summary.correct}/${summary.total}`} />
           <Stat label="Accuracy" value={`${Math.round(summary.accuracy * 100)}%`} />
+          {typeAccuracy !== null && (
+            <Stat label="Type accuracy" value={`${typeAccuracy}%`} accent="#c4b5fd" />
+          )}
         </div>
+        {typeResults.total > 0 && typeResults.correct < typeResults.total && (
+          <div style={{ background: 'rgba(167,139,250,0.12)', border: '1px solid rgba(167,139,250,0.3)', borderRadius: 12, padding: '10px 14px', marginBottom: 18, fontSize: 12.5, color: '#c4b5fd', lineHeight: 1.55 }}>
+            You got the right response type {typeResults.correct}/{typeResults.total} times.
+            Focus on matching the kind of reply the situation calls for.
+          </div>
+        )}
         <div style={{ display: 'flex', gap: 10 }}>
           <button onClick={onAgain}
             style={{ flex: 1, border: 'none', borderRadius: 14, padding: '12px 14px', cursor: 'pointer', background: 'rgba(255,255,255,0.12)', color: 'white', fontWeight: 900 }}>
@@ -378,10 +440,10 @@ function SummaryScreen({ island, summary, onAgain, onExit }) {
   );
 }
 
-function Stat({ label, value }) {
+function Stat({ label, value, accent }) {
   return (
     <div>
-      <div style={{ fontSize: 26, fontWeight: 900 }}>{value}</div>
+      <div style={{ fontSize: 26, fontWeight: 900, color: accent || 'white' }}>{value}</div>
       <div style={{ fontSize: 11, fontWeight: 900, color: 'rgba(255,255,255,0.55)', letterSpacing: '0.16em', textTransform: 'uppercase' }}>{label}</div>
     </div>
   );

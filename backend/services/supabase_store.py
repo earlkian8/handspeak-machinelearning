@@ -136,6 +136,14 @@ class SupabaseStore:
 
             CREATE INDEX IF NOT EXISTS conversation_attempts_session_idx
                 ON conversation_attempts(session_id);
+
+            -- Phase 2: response type columns (idempotent)
+            ALTER TABLE conversation_attempts
+                ADD COLUMN IF NOT EXISTS response_type_expected TEXT;
+            ALTER TABLE conversation_attempts
+                ADD COLUMN IF NOT EXISTS response_type_actual TEXT;
+            ALTER TABLE conversation_attempts
+                ADD COLUMN IF NOT EXISTS type_correct BOOLEAN;
             """
 
             with self._connect() as connection:
@@ -298,19 +306,29 @@ class SupabaseStore:
         matched_word: str | None,
         is_correct: bool,
         confidence: float | None,
+        response_type_expected: str | None = None,
+        response_type_actual: str | None = None,
+        type_correct: bool | None = None,
     ) -> dict[str, Any]:
         query = """
             INSERT INTO conversation_attempts (
                 session_id, user_id, prompt_id, expected_word,
-                matched_word, is_correct, confidence
+                matched_word, is_correct, confidence,
+                response_type_expected, response_type_actual, type_correct
             )
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id, session_id, prompt_id, expected_word, matched_word,
-                      is_correct, confidence, created_at
+                      is_correct, confidence,
+                      response_type_expected, response_type_actual, type_correct,
+                      created_at
         """
         row = self._fetchone(
             query,
-            (session_id, user_id, prompt_id, expected_word, matched_word, is_correct, confidence),
+            (
+                session_id, user_id, prompt_id, expected_word, matched_word,
+                is_correct, confidence,
+                response_type_expected, response_type_actual, type_correct,
+            ),
         )
         if not row:
             raise RuntimeError("Failed to record conversation attempt")
@@ -336,7 +354,9 @@ class SupabaseStore:
                 cursor.execute(
                     """
                     SELECT id, prompt_id, expected_word, matched_word,
-                           is_correct, confidence, created_at
+                           is_correct, confidence,
+                           response_type_expected, response_type_actual, type_correct,
+                           created_at
                     FROM conversation_attempts
                     WHERE session_id = %s
                     ORDER BY id ASC

@@ -16,6 +16,11 @@ from data.conversation_prompts import (
     get_prompt,
     get_prompts_for_island,
 )
+from data.response_types import (
+    RESPONSE_TYPES,
+    classify_word,
+    get_mismatch_feedback,
+)
 from logging_config import get_logger
 from models.schemas import GestureVerificationRequest
 from routes.gesture import _verify_dynamic_internal
@@ -45,6 +50,8 @@ class SessionSubmitPayload(BaseModel):
 
 def _public_prompt(prompt: dict[str, Any]) -> dict[str, Any]:
     """Strip internal-only fields before returning a prompt to the frontend."""
+    response_type = prompt.get("response_type")
+    type_info = RESPONSE_TYPES.get(response_type, {}) if response_type else {}
     return {
         "id": prompt["id"],
         "island_id": prompt["island_id"],
@@ -53,6 +60,8 @@ def _public_prompt(prompt: dict[str, Any]) -> dict[str, Any]:
         "expected_word": prompt["expected_word"],
         "acceptable_words": prompt.get("acceptable_words", [prompt["expected_word"]]),
         "intent_tag": prompt.get("intent_tag"),
+        "response_type": response_type,
+        "response_type_label": type_info.get("label"),
         "coaching_tip": prompt.get("coaching_tip"),
     }
 
@@ -66,21 +75,48 @@ def _score_attempt(prompt: dict[str, Any], verification: Any) -> dict[str, Any]:
 
     is_correct = bool(verification.is_match) and best_match in acceptable
 
+    # Phase 2: response type scoring
+    response_type_expected = prompt.get("response_type")
+    response_type_actual = classify_word(best_match) if best_match else None
+    type_correct: bool | None = None
+    if response_type_expected is not None:
+        type_correct = response_type_actual == response_type_expected
+
+    # Build feedback — type-mismatch message takes priority over generic wrong-word
     if is_correct:
         feedback_text = (
             f"Nice reply! You signed {verification.best_match.upper()} "
             f"(confidence {best_similarity:.2f})."
         )
+    elif response_type_expected and type_correct is False:
+        feedback_text = get_mismatch_feedback(
+            response_type_expected,
+            response_type_actual,
+            prompt.get("acceptable_words", [prompt["expected_word"]]),
+        )
     elif best_match and best_match != prompt["expected_word"].lower():
         feedback_text = (
-            f"Close — the model read your sign as {verification.best_match.upper()}. "
-            f"The expected reply was {prompt['expected_word'].upper()}."
+            f"Right type of response — just the wrong word. "
+            f"The model read {verification.best_match.upper()}, "
+            f"but you need {prompt['expected_word'].upper()}."
         )
     else:
         feedback_text = (
             f"Try again. Aim for {prompt['expected_word'].upper()} — "
             f"{prompt.get('coaching_tip', 'hold the sign steady and centered.')}"
         )
+
+    expected_info = RESPONSE_TYPES.get(response_type_expected, {}) if response_type_expected else {}
+    actual_info = RESPONSE_TYPES.get(response_type_actual, {}) if response_type_actual else {}
+
+    response_type_breakdown = {
+        "expected_type": response_type_expected,
+        "expected_type_label": expected_info.get("label"),
+        "actual_type": response_type_actual,
+        "actual_type_label": actual_info.get("label") if response_type_actual else None,
+        "type_correct": type_correct,
+        "explanation": feedback_text if (type_correct is False) else None,
+    }
 
     return {
         "is_correct": is_correct,
@@ -89,6 +125,11 @@ def _score_attempt(prompt: dict[str, Any], verification: Any) -> dict[str, Any]:
         "target_confidence": target_similarity,
         "feedback_text": feedback_text,
         "top_matches": [match.model_dump() for match in verification.top_matches],
+        "response_type_breakdown": response_type_breakdown,
+        # expose flat fields for store call
+        "_response_type_expected": response_type_expected,
+        "_response_type_actual": response_type_actual,
+        "_type_correct": type_correct,
     }
 
 
@@ -163,6 +204,9 @@ def submit_attempt(payload: SessionSubmitPayload):
             matched_word=scored["matched_word"],
             is_correct=scored["is_correct"],
             confidence=scored["confidence"],
+            response_type_expected=scored["_response_type_expected"],
+            response_type_actual=scored["_response_type_actual"],
+            type_correct=scored["_type_correct"],
         )
     except RuntimeError as error:
         raise HTTPException(status_code=503, detail=str(error)) from error
@@ -213,6 +257,7 @@ def submit_attempt(payload: SessionSubmitPayload):
         "confidence": scored["confidence"],
         "feedback_text": scored["feedback_text"],
         "top_matches": scored["top_matches"],
+        "response_type_breakdown": scored["response_type_breakdown"],
         "session_completed": session_completed,
         "next_prompt_id": next_prompt_id,
         "correct_count": len(correct_prompt_ids),
