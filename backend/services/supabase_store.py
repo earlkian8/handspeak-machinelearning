@@ -144,6 +144,26 @@ class SupabaseStore:
                 ADD COLUMN IF NOT EXISTS response_type_actual TEXT;
             ALTER TABLE conversation_attempts
                 ADD COLUMN IF NOT EXISTS type_correct BOOLEAN;
+
+            -- Phase 3: multi-turn chain sessions
+            CREATE TABLE IF NOT EXISTS conversation_chain_sessions (
+                id              BIGSERIAL   PRIMARY KEY,
+                user_id         BIGINT      NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
+                island_id       TEXT        NOT NULL,
+                chain_id        TEXT        NOT NULL,
+                status          TEXT        NOT NULL DEFAULT 'in_progress',
+                current_turn    INT         NOT NULL DEFAULT 0,
+                turns_snapshot  JSONB       NOT NULL DEFAULT '[]'::jsonb,
+                transcript      JSONB       NOT NULL DEFAULT '[]'::jsonb,
+                summary         JSONB       NOT NULL DEFAULT '{}'::jsonb,
+                started_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                completed_at    TIMESTAMPTZ,
+                CONSTRAINT chain_sessions_status_chk
+                    CHECK (status IN ('in_progress', 'completed', 'abandoned'))
+            );
+
+            CREATE INDEX IF NOT EXISTS chain_sessions_user_idx
+                ON conversation_chain_sessions (user_id);
             """
 
             with self._connect() as connection:
@@ -410,6 +430,88 @@ class SupabaseStore:
         conversation["islands"] = islands
         progress = {**progress, "conversation": conversation}
         return self.save_progress(user_id, progress)
+
+    # ── Multi-turn chain sessions (Phase 3) ──────────────────────────────
+    def create_chain_session(
+        self,
+        *,
+        user_id: int,
+        island_id: str,
+        chain_id: str,
+        turns_snapshot: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        query = """
+            INSERT INTO conversation_chain_sessions
+                (user_id, island_id, chain_id, turns_snapshot)
+            VALUES (%s, %s, %s, %s)
+            RETURNING id, user_id, island_id, chain_id, status,
+                      current_turn, turns_snapshot, transcript, summary,
+                      started_at, completed_at
+        """
+        row = self._fetchone(query, (user_id, island_id, chain_id, Json(turns_snapshot)))
+        if not row:
+            raise RuntimeError("Failed to create chain session")
+        return dict(row)
+
+    def get_chain_session(self, chain_session_id: int) -> dict[str, Any] | None:
+        row = self._fetchone(
+            """
+            SELECT id, user_id, island_id, chain_id, status,
+                   current_turn, turns_snapshot, transcript, summary,
+                   started_at, completed_at
+            FROM conversation_chain_sessions
+            WHERE id = %s
+            """,
+            (chain_session_id,),
+        )
+        return dict(row) if row else None
+
+    def advance_chain_turn(
+        self,
+        chain_session_id: int,
+        turn_entry: dict[str, Any],
+        next_turn_index: int,
+        is_complete: bool,
+    ) -> dict[str, Any]:
+        """Append a completed turn to transcript and advance current_turn."""
+        new_status = "completed" if is_complete else "in_progress"
+        query = """
+            UPDATE conversation_chain_sessions
+            SET transcript    = transcript || %s::jsonb,
+                current_turn  = %s,
+                status        = %s,
+                completed_at  = CASE WHEN %s THEN NOW() ELSE completed_at END
+            WHERE id = %s
+            RETURNING id, current_turn, status, transcript, turns_snapshot, summary
+        """
+        import json as _json
+        row = self._fetchone(
+            query,
+            (
+                _json.dumps([turn_entry]),
+                next_turn_index,
+                new_status,
+                is_complete,
+                chain_session_id,
+            ),
+        )
+        if not row:
+            raise RuntimeError("Failed to advance chain turn")
+        return dict(row)
+
+    def complete_chain_session(
+        self,
+        chain_session_id: int,
+        summary: dict[str, Any],
+    ) -> None:
+        self._execute(
+            """
+            UPDATE conversation_chain_sessions
+            SET status = 'completed', summary = %s, completed_at = NOW()
+            WHERE id = %s
+            """,
+            (Json(summary), chain_session_id),
+        )
 
     def record_gesture_verification(
         self,

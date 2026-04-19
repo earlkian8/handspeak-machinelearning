@@ -13,6 +13,7 @@ import StudySession from './features/study/StudySession';
 import IslandsHub from './features/islands/IslandsHub';
 import IslandOverview from './features/islands/IslandOverview';
 import ReplyQuestSession from './features/islands/ReplyQuestSession';
+import ChainSession from './features/islands/ChainSession';
 import Settings from './features/settings/Settings';
 
 function App() {
@@ -70,7 +71,7 @@ function App() {
           {/* Unified Islands journey — Phase 1 */}
           <Route path="/islands" element={guard(<IslandsHub />)} />
           <Route path="/islands/:islandId" element={guard(<IslandOverview />)} />
-          <Route path="/islands/:islandId/converse" element={guard(<ReplyQuestSession />)} />
+          <Route path="/islands/:islandId/converse" element={guard(<ChainSession />)} />
 
           {/* Learn mode (reuses existing Study Voyage screens under the Islands journey) */}
           <Route path="/study" element={<Navigate to="/islands" replace />} />

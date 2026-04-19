@@ -1,8 +1,9 @@
-"""Conversation (Reply Quest) routes — Phase 1.
+"""Conversation routes — Phases 1/2/3.
 
-Delegates all gesture inference to the existing dynamic model path; this
-router only handles prompt selection, session state, attempt logging, and
-response-level feedback copy.
+Delegates all gesture inference to the existing dynamic model path.
+Phase 1: flat prompt sessions (Reply Quest).
+Phase 2: response-type-aware scoring.
+Phase 3: multi-turn conversation chains with coherence scoring.
 """
 
 from __future__ import annotations
@@ -12,6 +13,7 @@ from typing import Any, Optional
 from fastapi import APIRouter, Body, HTTPException
 from pydantic import BaseModel, Field
 
+from data.conversation_chains import get_chain, get_chains_for_island
 from data.conversation_prompts import (
     get_prompt,
     get_prompts_for_island,
@@ -281,4 +283,265 @@ def get_session(session_id: int):
             hydrated_prompts.append(_public_prompt(prompt))
 
     session["prompts"] = hydrated_prompts
+    return session
+
+
+# ── Phase 3: Multi-turn chain endpoints ──────────────────────────────────────
+
+# Valid (prev_type, curr_type) transitions that are conversationally coherent
+_VALID_TRANSITIONS: set[tuple[str, str]] = {
+    ("greet-open", "confirm"),
+    ("greet-open", "react"),
+    ("greet-open", "greet-close"),
+    ("confirm", "gratitude"),
+    ("confirm", "greet-close"),
+    ("confirm", "react"),
+    ("react", "gratitude"),
+    ("react", "greet-close"),
+    ("gratitude", "greet-close"),
+    ("gratitude", "confirm"),
+    ("deny", "greet-close"),
+}
+
+
+def _compute_coherence(transcript: list[dict[str, Any]]) -> dict[str, Any]:
+    """Compute per-turn and overall coherence from a completed chain transcript."""
+    n = len(transcript)
+    if n == 0:
+        return {"coherence_score": 0.0, "type_accuracy": 0.0, "word_accuracy": 0.0, "per_turn_scores": []}
+
+    type_scores: list[float] = []
+    word_scores: list[float] = []
+    transition_scores: list[float] = []
+    per_turn: list[dict[str, Any]] = []
+
+    for i, entry in enumerate(transcript):
+        wc = bool(entry.get("is_correct"))
+        tc = entry.get("type_correct")
+        type_score = 1.0 if tc else 0.0
+        word_score = 1.0 if wc else 0.0
+
+        transition_score = 1.0  # first turn always valid
+        if i > 0:
+            prev_type = transcript[i - 1].get("response_type")
+            curr_type = entry.get("response_type")
+            if prev_type and curr_type:
+                transition_score = 1.0 if (prev_type, curr_type) in _VALID_TRANSITIONS else 0.5
+
+        type_scores.append(type_score)
+        word_scores.append(word_score)
+        transition_scores.append(transition_score)
+        per_turn.append({
+            "turn_index": entry.get("turn_index", i),
+            "word_correct": wc,
+            "type_correct": tc,
+            "turn_coherence": round(0.6 * type_score + 0.4 * transition_score, 2),
+        })
+
+    type_accuracy = sum(type_scores) / n
+    word_accuracy = sum(word_scores) / n
+    transition_accuracy = sum(transition_scores) / n
+    coherence_score = round(0.6 * type_accuracy + 0.4 * transition_accuracy, 2)
+
+    return {
+        "coherence_score": coherence_score,
+        "type_accuracy": round(type_accuracy, 2),
+        "word_accuracy": round(word_accuracy, 2),
+        "per_turn_scores": per_turn,
+    }
+
+
+def _public_chain(chain: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "id": chain["id"],
+        "island_id": chain["island_id"],
+        "title": chain["title"],
+        "description": chain["description"],
+        "turns_count": len(chain["turns"]),
+        "max_attempts_per_turn": chain.get("max_attempts_per_turn", 2),
+    }
+
+
+class ChainStartPayload(BaseModel):
+    user_id: int
+    island_id: str
+    chain_id: str
+
+
+class ChainSubmitPayload(BaseModel):
+    chain_session_id: int
+    turn_index: int
+    user_id: Optional[int] = None
+    frames: list[str] = Field(default_factory=list)
+
+
+@router.get("/islands/{island_id}/chains")
+def list_chains(island_id: str):
+    chains = get_chains_for_island(island_id)
+    if not chains:
+        raise HTTPException(status_code=404, detail=f"No chains for island '{island_id}'")
+    return [_public_chain(c) for c in chains]
+
+
+@router.post("/chain/start")
+def start_chain(payload: ChainStartPayload):
+    chain = get_chain(payload.chain_id)
+    if not chain or chain["island_id"] != payload.island_id:
+        raise HTTPException(status_code=404, detail="Chain not found for this island")
+
+    try:
+        session = store.create_chain_session(
+            user_id=payload.user_id,
+            island_id=payload.island_id,
+            chain_id=payload.chain_id,
+            turns_snapshot=chain["turns"],
+        )
+    except RuntimeError as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
+
+    first_turn = chain["turns"][0]
+    logger.info(
+        "chain_session_started user=%s chain=%s session=%s",
+        payload.user_id, payload.chain_id, session["id"],
+    )
+
+    return {
+        "chain_session_id": int(session["id"]),
+        "chain_id": chain["id"],
+        "title": chain["title"],
+        "description": chain["description"],
+        "turns_count": len(chain["turns"]),
+        "max_attempts_per_turn": chain.get("max_attempts_per_turn", 2),
+        "current_turn": 0,
+        "current_turn_data": first_turn,
+    }
+
+
+@router.post("/chain/submit")
+def submit_chain_turn(payload: ChainSubmitPayload):
+    session = store.get_chain_session(payload.chain_session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Chain session not found")
+    if session["status"] == "completed":
+        raise HTTPException(status_code=400, detail="Chain session is already completed")
+
+    turns_snapshot: list[dict[str, Any]] = session.get("turns_snapshot") or []
+    total_turns = len(turns_snapshot)
+
+    if payload.turn_index >= total_turns:
+        raise HTTPException(status_code=400, detail="turn_index out of range")
+
+    turn = turns_snapshot[payload.turn_index]
+    chain = get_chain(session["chain_id"])
+    max_attempts = (chain or {}).get("max_attempts_per_turn", 2)
+
+    # Count prior attempts on this turn from transcript
+    transcript: list[dict[str, Any]] = session.get("transcript") or []
+    prior_attempts_this_turn = sum(
+        1 for t in transcript if t.get("turn_index") == payload.turn_index
+    )
+    if prior_attempts_this_turn >= max_attempts:
+        raise HTTPException(status_code=400, detail="Maximum attempts for this turn already used")
+
+    if not payload.frames:
+        raise HTTPException(status_code=400, detail="At least one frame is required")
+
+    verify_request = GestureVerificationRequest(
+        target_word=turn["expected_word"],
+        frames=payload.frames,
+        model_type="dynamic",
+        top_k=REPLY_QUEST_TOP_K,
+        threshold=REPLY_QUEST_THRESHOLD,
+        user_id=payload.user_id,
+    )
+    verification = _verify_dynamic_internal(verify_request)
+
+    # Reuse Phase 2 scoring (prompt dict has same shape as turn dict for scoring)
+    scored = _score_attempt(turn, verification)
+
+    attempt_number = prior_attempts_this_turn + 1
+    is_last_attempt = attempt_number >= max_attempts
+    should_advance = scored["is_correct"] or is_last_attempt
+
+    turn_entry: dict[str, Any] = {
+        "turn_index": payload.turn_index,
+        "npc_line": turn["npc_line"],
+        "expected_word": turn["expected_word"],
+        "response_type": turn.get("response_type"),
+        "matched_word": scored["matched_word"],
+        "is_correct": scored["is_correct"],
+        "type_correct": scored["_type_correct"],
+        "confidence": scored["confidence"],
+        "attempt_number": attempt_number,
+        "feedback_text": scored["feedback_text"],
+        "response_type_breakdown": scored["response_type_breakdown"],
+    }
+
+    next_turn_index = payload.turn_index + (1 if should_advance else 0)
+    is_chain_complete = should_advance and next_turn_index >= total_turns
+
+    # Build full transcript for coherence calculation
+    # Include prior turns plus this one (only the final attempt per turn)
+    final_transcript: list[dict[str, Any]] = []
+    seen_turns: set[int] = set()
+    for t in reversed(transcript):
+        ti = t.get("turn_index", -1)
+        if ti not in seen_turns:
+            seen_turns.add(ti)
+            final_transcript.insert(0, t)
+    if should_advance:
+        final_transcript.append(turn_entry)
+
+    coherence = _compute_coherence(final_transcript) if is_chain_complete else _compute_coherence(final_transcript)
+
+    chain_summary = None
+    if is_chain_complete:
+        correct_turns = sum(1 for t in final_transcript if t.get("is_correct"))
+        chain_summary = {
+            "chain_id": session["chain_id"],
+            "total_turns": total_turns,
+            "correct_turns": correct_turns,
+            **coherence,
+        }
+
+    try:
+        updated = store.advance_chain_turn(
+            chain_session_id=payload.chain_session_id,
+            turn_entry=turn_entry,
+            next_turn_index=next_turn_index,
+            is_complete=is_chain_complete,
+        )
+        if is_chain_complete and chain_summary:
+            store.complete_chain_session(payload.chain_session_id, chain_summary)
+    except RuntimeError as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
+
+    next_turn_data = None
+    if should_advance and not is_chain_complete and next_turn_index < total_turns:
+        next_turn_data = turns_snapshot[next_turn_index]
+
+    return {
+        "chain_session_id": payload.chain_session_id,
+        "turn_index": payload.turn_index,
+        "is_correct": scored["is_correct"],
+        "matched_word": scored["matched_word"],
+        "confidence": scored["confidence"],
+        "feedback_text": scored["feedback_text"],
+        "response_type_breakdown": scored["response_type_breakdown"],
+        "coherence_so_far": coherence,
+        "attempt_number": attempt_number,
+        "attempts_remaining": max(0, max_attempts - attempt_number),
+        "should_advance": should_advance,
+        "is_chain_complete": is_chain_complete,
+        "next_turn_index": next_turn_index if should_advance else payload.turn_index,
+        "next_turn_data": next_turn_data,
+        "chain_summary": chain_summary,
+    }
+
+
+@router.get("/chain/{chain_session_id}")
+def get_chain_session(chain_session_id: int):
+    session = store.get_chain_session(chain_session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Chain session not found")
     return session
