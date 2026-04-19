@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, MessageCircle, Map as MapIcon, RotateCcw } from 'lucide-react';
-import { getStoredStudyProgress, getIslandProgress, loadStudyProgress } from '../study/studyVoyage';
+import { getStoredStudyProgress, getIslandProgress, loadStudyProgress, isIslandUnlocked, isIslandCompleted } from '../study/studyVoyage';
 import { fetchJson } from '../../lib/api';
 import { useIslands } from '../../contexts/IslandsContext';
 import IslandNode from './IslandNode';
@@ -77,8 +77,8 @@ export default function IslandsHub() {
       const record = masteryProgress.find(m => m.island_id === island.id);
       const islandProgress = getIslandProgress(localProgress, island.id);
       
-      const unlocked = record ? record.is_unlocked : false;
-      const completed = record ? record.is_completed : false;
+      const unlocked = isIslandUnlocked(localProgress, island.id);
+      const completed = isIslandCompleted(localProgress, island.id);
       
       return {
         ...island,
