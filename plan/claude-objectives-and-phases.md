@@ -40,6 +40,7 @@ Current learner flow is fragmented and confusing (example: alphabet content in S
 This must be treated as a full learning-experience refactor, not a small UI fix.
 
 Claude must enforce these rules across implementation phases:
+
 1. Build one unified learning journey, not disconnected feature silos.
 2. Reorganize content architecture so learners progress in a pedagogically logical sequence.
 3. Remove mode confusion between study and practice by clarifying purpose, entry points, and outcomes of each screen.
@@ -47,6 +48,7 @@ Claude must enforce these rules across implementation phases:
 5. Keep existing model inference functionality intact while refactoring UX and learning structure.
 
 Definition of done for this directive:
+
 1. A beginner can explain where to start, what to do next, and why each activity matters.
 2. No duplicate learning paths with overlapping purpose remain.
 3. Navigation and curriculum structure reflect one coherent learner mental model.
@@ -107,6 +109,7 @@ Below are the official phases for prompting Claude.
 Each phase is implementation-first: every prompt must ship working features (code + DB + UI + tests/evidence), not just planning text.
 
 Phase completion rule:
+
 1. Backend code is updated and runnable.
 2. Frontend code is updated and usable.
 3. Database schema/data flow is updated if needed.
@@ -115,12 +118,13 @@ Phase completion rule:
 
 ---
 
-## Phase 1 - Core conversation loop implementation
+## Phase 1 - Core conversation loop implementation (done)
 
 Objective:
 Ship a usable end-to-end conversation practice loop for one island (Greetings) and establish the unified learning architecture baseline.
 
 Deliverables:
+
 1. Backend endpoints for conversation prompt session start/submit
 2. Frontend playable practice flow (prompt -> user response -> feedback)
 3. Persistence for attempt logs and per-user results
@@ -129,6 +133,7 @@ Deliverables:
 6. Clear screen responsibilities for learn, drill, and conversation modes
 
 Acceptance criteria:
+
 1. User can complete one full conversation practice cycle in app.
 2. Attempt is stored and visible in user progress retrieval.
 3. First-time learner path is linear and understandable from entry to first completion.
@@ -141,12 +146,14 @@ Objective:
 Implement response-type aware scoring and feedback.
 
 Deliverables:
+
 1. Response type taxonomy in code (confirm, deny, clarify, ask-back, react, repair)
 2. Scoring logic that evaluates response type correctness
 3. Feedback generator that explains mismatch and correction
 4. API + UI support to surface response type score breakdown
 
 Acceptance criteria:
+
 1. At least 3 response types are scored and displayed in UI.
 2. Feedback explains why response is wrong and what correct response type should be.
 
@@ -158,12 +165,14 @@ Objective:
 Implement 3-6 turn conversation sessions with coherence scoring.
 
 Deliverables:
+
 1. Session model for multi-turn state and turn history
 2. Backend orchestration for next-turn prompt generation/selection
 3. Coherence scoring across full chain
 4. Frontend turn-by-turn experience with summary screen
 
 Acceptance criteria:
+
 1. User can finish a 3-turn chain with stored full turn transcript.
 2. Summary includes per-turn and overall coherence scores.
 
@@ -175,12 +184,14 @@ Objective:
 Implement progression logic that unlocks islands and lessons by demonstrated ability.
 
 Deliverables:
+
 1. Four-axis mastery model (comprehension, response accuracy, timing, repair)
 2. Unlock rule engine driven by mastery thresholds
 3. Retry/remediation assignment logic
 4. Backend + frontend island state synchronization
 
 Acceptance criteria:
+
 1. Users cannot skip core response skills accidentally.
 2. Island unlock status updates automatically after qualifying sessions.
 
@@ -192,12 +203,14 @@ Objective:
 Make conversations context-sensitive so correctness depends on scenario.
 
 Deliverables:
+
 1. Situation card model (school, store, commute, first meeting, help request)
 2. Context-aware scoring adjustments
 3. Context mismatch feedback messages
 4. Frontend context display in practice session
 
 Acceptance criteria:
+
 1. Same response can score differently under different contexts.
 2. User receives explicit context appropriateness feedback.
 
@@ -209,12 +222,14 @@ Objective:
 Implement misunderstanding recovery practice as a first-class feature.
 
 Deliverables:
+
 1. Drill mode where system intentionally injects misunderstandings
 2. Repair response detection (repeat, slow down, rephrase, confirm)
 3. Drill-specific feedback and scoring
 4. Progress impact from repair performance
 
 Acceptance criteria:
+
 1. User can complete at least one full repair drill sequence.
 2. Repair ability contributes to mastery score.
 
@@ -226,12 +241,14 @@ Objective:
 Ship branching conversation boss encounters per island.
 
 Deliverables:
+
 1. Branching dialogue trees for at least 2 islands
 2. Boss outcome logic (pass/fail + coaching path)
 3. Boss performance persistence and replay options
 4. UI flow for boss intro, run, and result
 
 Acceptance criteria:
+
 1. User can start and finish boss dialogue with branching behavior.
 2. Boss outcomes affect island progression state.
 
@@ -243,12 +260,14 @@ Objective:
 Build spaced repetition and weak-skill targeting.
 
 Deliverables:
+
 1. Review scheduler
 2. Weak-skill detection
 3. Targeted recap lesson generation
 4. Frontend review queue UI and completion flow
 
 Acceptance criteria:
+
 1. Weak areas are automatically surfaced and practiced.
 2. Retention score is measurable over time.
 
@@ -260,12 +279,14 @@ Objective:
 Add motivational systems that reward real conversation ability.
 
 Deliverables:
+
 1. Conversation streak logic (not login streak)
 2. Context stars and recovery badges
 3. Readiness rank based on scenario outcomes
 4. UI for reward display linked to skill evidence
 
 Acceptance criteria:
+
 1. Rewards are granted only when communication quality thresholds are met.
 2. No reward path can be farmed via low-quality repetition.
 
@@ -277,12 +298,14 @@ Objective:
 Provide actionable analytics for learner and mentor/instructor oversight.
 
 Deliverables:
+
 1. KPI endpoints and aggregated metrics pipeline
 2. Learner dashboard for progress trends
 3. Instructor/admin view for weak-skill patterns
 4. Data export/report capability for review
 
 Acceptance criteria:
+
 1. KPI data updates from real attempt events.
 2. Dashboard clearly highlights weak skills and recommended focus.
 
@@ -294,12 +317,14 @@ Objective:
 Harden system reliability while preserving model and feature behavior.
 
 Deliverables:
+
 1. Automated API/integration tests for conversation flows
 2. Regression tests for scoring and progression rules
 3. Error monitoring hooks and operational logging improvements
 4. Performance and failure-handling improvements
 
 Acceptance criteria:
+
 1. Critical conversation flows pass automated tests.
 2. App degrades gracefully on service/DB interruptions.
 
@@ -311,12 +336,14 @@ Objective:
 Ship tooling and workflow for adding new islands and scenarios safely.
 
 Deliverables:
+
 1. Content authoring format and validation rules
 2. New island onboarding flow (content -> DB -> UI availability)
 3. Experiment toggle system for feature trials
 4. Iteration playbook based on learning outcomes
 
 Acceptance criteria:
+
 1. Team can add a new island without codebase instability.
 2. Expansion remains aligned with conversation-first mission.
 
@@ -335,6 +362,7 @@ For each phase, prompt Claude with:
 7. Mandatory verification evidence
 
 Implementation-only prompt contract:
+
 1. Claude must modify code (backend and/or frontend) in the phase.
 2. Claude must return exact files changed and why.
 3. Claude must include DB changes when feature requires persistence.
