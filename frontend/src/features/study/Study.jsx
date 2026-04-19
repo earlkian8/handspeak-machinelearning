@@ -5,6 +5,7 @@ import {
   STUDY_ISLANDS,
   getInitialStudyProgress,
   getStoredStudyProgress,
+  loadStudyProgress,
   saveStudyProgress,
   isIslandUnlocked,
   isIslandCompleted,
@@ -35,9 +36,19 @@ export default function Study() {
   const [lockedHint, setLockedHint] = useState('');
 
   useEffect(() => {
-    const normalized = getStoredStudyProgress();
-    setProgress(normalized);
-    saveStudyProgress(normalized);
+    let active = true;
+    const cached = getStoredStudyProgress();
+    setProgress(cached);
+
+    loadStudyProgress().then((normalized) => {
+      if (!active) return;
+      setProgress(normalized);
+      saveStudyProgress(normalized);
+    });
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   const stats = useMemo(() => getVoyageStats(progress), [progress]);

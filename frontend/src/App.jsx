@@ -27,15 +27,18 @@ function App() {
   }, []);
 
   const handleLogin = (userData) => {
+    localStorage.setItem('handspeak_user', JSON.stringify(userData));
     setUser(userData);
   };
 
   const handleLogout = () => {
+    localStorage.removeItem('handspeak_study_progress');
     setUser(null);
   };
 
   const handleProfileComplete = (profile) => {
-    // Optional: update user state with profile
+    localStorage.setItem('handspeak_user', JSON.stringify(profile));
+    setUser(profile);
   };
 
   if (loading) {
@@ -108,7 +111,7 @@ function App() {
           <Route
             path="/settings"
             element={
-              user ? <Settings onLogout={handleLogout} /> : <Navigate to="/" />
+              user ? <Settings user={user} onLogout={handleLogout} /> : <Navigate to="/" />
             }
           />
 

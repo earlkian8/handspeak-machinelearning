@@ -1,11 +1,25 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Body
 from data.asl_data import STUDY_TOPICS, ALL_STUDY_PHRASES, ALPHABET_TOPICS
 from models.schemas import ProgressUpdate
+from services.supabase_store import get_store
 
 router = APIRouter(prefix="/api/study", tags=["study"])
 
-# In-memory progress store (replace with DB later)
-_user_progress: dict = {}
+store = get_store()
+
+
+def _empty_progress(user_id: int) -> dict:
+    return {
+        "user_id": user_id,
+        "version": 2,
+        "islands": {},
+        "unlockedIslandIds": [],
+        "totalXp": 0,
+        "completed_topics": [],
+        "completed_phrases": [],
+        "xp": 0,
+        "level": 1,
+    }
 
 
 @router.get("/topics")
@@ -50,60 +64,58 @@ def get_phrase(phrase_id: str):
 @router.get("/progress/{user_id}")
 def get_progress(user_id: int):
     """Get user's learning progress."""
-    return _user_progress.get(user_id, {
-        "user_id": user_id,
-        "completed_chapters": [],
-        "current_chapter": STUDY_TOPICS[0]["id"] if STUDY_TOPICS else None,
-        "completed_words": [],
-        "completed_letters": [],
-        "level": 1,
-        "xp": 0,
-    })
+    try:
+        progress = store.get_or_create_progress(user_id)
+    except RuntimeError as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
+    if not progress:
+        progress = _empty_progress(user_id)
+        try:
+            store.save_progress(user_id, progress)
+        except RuntimeError as error:
+            raise HTTPException(status_code=503, detail=str(error)) from error
+    return progress
 
 
 @router.post("/progress/{user_id}")
-def update_progress(user_id: int, body: ProgressUpdate):
+def update_progress(user_id: int, payload: dict = Body(default_factory=dict)):
     """Update user's learning progress."""
-    if user_id not in _user_progress:
-        _user_progress[user_id] = {
-            "user_id": user_id,
-            "completed_chapters": [],
-            "current_chapter": STUDY_TOPICS[0]["id"] if STUDY_TOPICS else None,
-            "completed_words": [],
-            "completed_letters": [],
-            "level": 1,
-            "xp": 0,
-        }
-    
-    prog = _user_progress[user_id]
-    word_id = body.word_id
-    
-    # Track whether it's a letter or word
-    is_letter = word_id.lower() in [e["id"] for e in ALPHABET_TOPICS] or \
-                any(p["id"] == word_id for topic in ALPHABET_TOPICS for p in topic.get("phrases", []))
-    
-    # Add to appropriate list
-    if is_letter:
-        if word_id not in prog.get("completed_letters", []):
-            prog.setdefault("completed_letters", []).append(word_id)
-            prog["xp"] += 5
-    else:
-        if word_id not in prog["completed_words"]:
-            prog["completed_words"].append(word_id)
-            prog["xp"] += 10
-    
-    prog["level"] = 1 + prog["xp"] // 50
+    if "progress" in payload and isinstance(payload["progress"], dict):
+        try:
+            return store.save_progress(user_id, payload["progress"])
+        except RuntimeError as error:
+            raise HTTPException(status_code=503, detail=str(error)) from error
 
-    # Check if entire chapter is done
-    all_topics = STUDY_TOPICS + ALPHABET_TOPICS
-    for t in all_topics:
-        if t["id"] == body.chapter_id:
-            topic_item_ids = [p["id"] for p in t["phrases"]]
-            if all(item_id in prog["completed_words"] or item_id in prog.get("completed_letters", []) 
-                   for item_id in topic_item_ids):
-                if body.chapter_id not in prog["completed_chapters"]:
-                    prog["completed_chapters"].append(body.chapter_id)
-                    prog["xp"] += 50  # Bonus for completing a chapter
-            break
+    if "version" in payload or "islands" in payload or "completed_phrases" in payload:
+        try:
+            return store.save_progress(user_id, payload)
+        except RuntimeError as error:
+            raise HTTPException(status_code=503, detail=str(error)) from error
 
-    return prog
+    if {"chapter_id", "word_id"}.issubset(payload.keys()):
+        try:
+            progress = store.get_or_create_progress(user_id) or _empty_progress(user_id)
+        except RuntimeError as error:
+            raise HTTPException(status_code=503, detail=str(error)) from error
+        prog = dict(progress)
+        word_id = str(payload["word_id"])
+
+        is_letter = any(
+            word_id.lower() == phrase["id"]
+            for topic in ALPHABET_TOPICS
+            for phrase in topic.get("phrases", [])
+        )
+
+        completed_phrases = list(prog.get("completed_phrases", []))
+        if word_id not in completed_phrases:
+            completed_phrases.append(word_id)
+            prog["completed_phrases"] = completed_phrases
+            prog["xp"] = int(prog.get("xp", 0)) + (5 if is_letter else 10)
+
+        prog["level"] = 1 + int(prog.get("xp", 0)) // 50
+        try:
+            return store.save_progress(user_id, prog)
+        except RuntimeError as error:
+            raise HTTPException(status_code=503, detail=str(error)) from error
+
+    raise HTTPException(status_code=400, detail="Invalid progress payload")

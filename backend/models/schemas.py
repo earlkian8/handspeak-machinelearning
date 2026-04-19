@@ -28,6 +28,7 @@ class UserOut(BaseModel):
     middle_name: Optional[str] = None
     last_name: Optional[str] = None
     nickname: Optional[str] = None
+    profile_complete: bool = False
 
 
 # ── Progress ────────────────────────────────────────────────────────
@@ -35,6 +36,10 @@ class ProgressUpdate(BaseModel):
     chapter_id: str
     word_id: str
     completed: bool = True
+
+
+class StudyProgressPayload(BaseModel):
+    progress: dict = Field(default_factory=dict)
 
 
 class UserProgress(BaseModel):
@@ -63,6 +68,7 @@ class GestureVerificationRequest(BaseModel):
     model_type: Literal["auto", "static", "dynamic"] = "auto"
     top_k: int = 5
     threshold: float = 0.72
+    user_id: Optional[int] = None
 
 
 class GestureMatch(BaseModel):

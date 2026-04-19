@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Fish, Eye, EyeOff } from 'lucide-react';
+import { postJson } from '../../lib/api';
 
 export default function SignUp({ onLogin }) {
   const navigate = useNavigate();
@@ -12,17 +13,22 @@ export default function SignUp({ onLogin }) {
   const [showPass, setShowPass] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     if (!email || !password || !confirm) { setError('Please fill in all fields'); return; }
     if (password !== confirm) { setError('Passwords do not match'); return; }
     if (password.length < 6) { setError('Password must be at least 6 characters'); return; }
     if (!agreed) { setError('Please agree to the terms'); return; }
-    const user = { id: Date.now(), email, nickname: null };
-    localStorage.setItem('handspeak_user', JSON.stringify(user));
-    onLogin(user);
-    navigate('/welcome');
+
+    try {
+      const user = await postJson('/api/auth/signup', { email, password });
+      localStorage.setItem('handspeak_user', JSON.stringify(user));
+      onLogin(user);
+      navigate('/welcome');
+    } catch (signUpError) {
+      setError(signUpError.message || 'Unable to create account');
+    }
   };
 
   return (

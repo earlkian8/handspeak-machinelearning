@@ -4,7 +4,7 @@ import {
   ArrowLeft, User, Star, Trophy, Zap, RotateCcw, LogOut,
   BookOpen, Shield, TrendingUp, Award, Info, ChevronRight,
 } from 'lucide-react';
-import { getStoredStudyProgress, getVoyageStats, STUDY_ISLANDS } from '../study/studyVoyage';
+import { getStoredStudyProgress, getVoyageStats, STUDY_ISLANDS, loadStudyProgress, resetStudyProgress } from '../study/studyVoyage';
 
 const ISLAND_COLORS = {
   greetings: '#22d3ee',
@@ -58,31 +58,40 @@ function Row({ label, value, accent, last }) {
   );
 }
 
-export default function Settings({ onLogout }) {
+export default function Settings({ user, onLogout }) {
   const navigate = useNavigate();
   const [profile, setProfile] = useState({});
   const [progress, setProgress] = useState(null);
   const [confirmReset, setConfirmReset] = useState(false);
 
   useEffect(() => {
-    const p = localStorage.getItem('handspeak_profile');
-    if (p) setProfile(JSON.parse(p));
+    setProfile(user || JSON.parse(localStorage.getItem('handspeak_user') || '{}'));
     setProgress(getStoredStudyProgress());
-  }, []);
+
+    let active = true;
+    loadStudyProgress().then((normalized) => {
+      if (active) setProgress(normalized);
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [user]);
 
   const stats = progress ? getVoyageStats(progress) : { xp: 0, playerLevel: 1, completedIslands: 0, totalIslands: 5, completedPhraseLevels: 0, totalPhraseLevels: 25 };
 
   const handleLogout = () => {
     localStorage.removeItem('handspeak_user');
     localStorage.removeItem('handspeak_profile');
+    localStorage.removeItem('handspeak_study_progress');
     if (onLogout) onLogout();
     navigate('/');
   };
 
   const handleResetProgress = () => {
     if (confirmReset) {
-      localStorage.removeItem('handspeak_study_progress');
-      setProgress(null);
+      const reset = resetStudyProgress();
+      setProgress(reset);
       setConfirmReset(false);
     } else {
       setConfirmReset(true);
@@ -90,8 +99,8 @@ export default function Settings({ onLogout }) {
     }
   };
 
-  const profileName = [profile.firstName, profile.middleName, profile.lastName].filter(Boolean).join(' ') || '—';
-  const initials = [profile.firstName?.[0], profile.lastName?.[0]].filter(Boolean).join('').toUpperCase() || '?';
+  const profileName = [profile.first_name, profile.middle_name, profile.last_name].filter(Boolean).join(' ') || '—';
+  const initials = [profile.first_name?.[0], profile.last_name?.[0]].filter(Boolean).join('').toUpperCase() || '?';
 
   const xpPct = Math.min(100, stats.progressPercent ?? 0);
 

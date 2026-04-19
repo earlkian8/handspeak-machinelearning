@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Settings, BookOpen, Hand, Trophy, Zap, Star, TrendingUp, Award } from 'lucide-react';
-import { getStoredStudyProgress, getVoyageStats, STUDY_ISLANDS } from '../study/studyVoyage';
+import { getStoredStudyProgress, getVoyageStats, STUDY_ISLANDS, loadStudyProgress } from '../study/studyVoyage';
 
 /* ── floating particle ── */
 const Particle = ({ x, y, size, delay, opacity }) => (
@@ -16,12 +16,24 @@ const Particle = ({ x, y, size, delay, opacity }) => (
 
 export default function Dashboard({ user }) {
   const navigate = useNavigate();
-  const profile = JSON.parse(localStorage.getItem('handspeak_profile') || '{}');
-  const displayName = profile.nickname || profile.firstName || user?.email?.split('@')[0] || 'Captain';
-  const fullName = [profile.firstName, profile.lastName].filter(Boolean).join(' ') || displayName;
-  const initials = [profile.firstName?.[0], profile.lastName?.[0]].filter(Boolean).join('').toUpperCase() || displayName[0]?.toUpperCase() || 'C';
+  const profile = user || JSON.parse(localStorage.getItem('handspeak_user') || '{}');
+  const displayName = profile.nickname || profile.first_name || profile.email?.split('@')[0] || 'Captain';
+  const fullName = [profile.first_name, profile.last_name].filter(Boolean).join(' ') || displayName;
+  const initials = [profile.first_name?.[0], profile.last_name?.[0]].filter(Boolean).join('').toUpperCase() || displayName[0]?.toUpperCase() || 'C';
 
-  const [progress] = useState(() => getStoredStudyProgress());
+  const [progress, setProgress] = useState(() => getStoredStudyProgress());
+
+  useEffect(() => {
+    let active = true;
+    loadStudyProgress().then((normalized) => {
+      if (active) setProgress(normalized);
+    });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const stats = getVoyageStats(progress);
 
   const greeting = () => {

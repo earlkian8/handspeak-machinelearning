@@ -4,9 +4,14 @@ from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from time import perf_counter
 
+from env_bootstrap import load_backend_env
 from logging_config import configure_logging, get_logger
+
+load_backend_env()
+
 from routes import auth, practice, study
 from routes import gesture
+from services.supabase_store import get_store
 
 configure_logging()
 logger = get_logger("handspeak.main")
@@ -63,6 +68,11 @@ async def request_logging_middleware(request: Request, call_next):
 
 @app.on_event("startup")
 def warmup_gesture_models() -> None:
+    try:
+        get_store().ensure_schema()
+    except Exception as error:
+        logger.warning("database_not_ready error_type=%s error=%s", type(error).__name__, error)
+
     # Warm up each model independently so static and dynamic do not block each other.
     from services.static_gesture_service import start_static_service_warmup
     from services.gesture_recognition import start_dynamic_service_warmup

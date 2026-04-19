@@ -7,6 +7,7 @@ import {
   getIslandById,
   getInitialStudyProgress,
   getStoredStudyProgress,
+  loadStudyProgress,
   saveStudyProgress,
   isIslandUnlocked,
   isLevelCompleted,
@@ -52,9 +53,19 @@ export default function StudySession() {
   const bossChallenge = island && isBossLevel ? buildBossChallenge(island, progress) : null;
 
   useEffect(() => {
-    const normalized = getStoredStudyProgress();
-    setProgress(normalized);
-    saveStudyProgress(normalized);
+    let active = true;
+    const cached = getStoredStudyProgress();
+    setProgress(cached);
+
+    loadStudyProgress().then((normalized) => {
+      if (!active) return;
+      setProgress(normalized);
+      saveStudyProgress(normalized);
+    });
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => { setImgOk(true); }, [levelId]);

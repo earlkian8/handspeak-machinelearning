@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Anchor, ArrowRight } from 'lucide-react';
+import { putJson } from '../../lib/api';
 
 function FishSvg({ color = 'rgba(255,255,255,0.22)', size = 48 }) {
   return (
@@ -21,16 +22,26 @@ export default function Welcome({ user, onProfileComplete }) {
   const [nickname, setNickname] = useState('');
   const [error, setError] = useState('');
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!firstName || !lastName || !nickname) {
       setError('Please fill in First Name, Last Name, and Nickname.');
       return;
     }
-    const profile = { firstName, middleName, lastName, nickname };
-    localStorage.setItem('handspeak_profile', JSON.stringify(profile));
-    onProfileComplete(profile);
-    navigate('/dashboard');
+
+    try {
+      const profile = await putJson(`/api/auth/profile/${user.id}`, {
+        first_name: firstName,
+        middle_name: middleName,
+        last_name: lastName,
+        nickname,
+      });
+      localStorage.setItem('handspeak_user', JSON.stringify(profile));
+      onProfileComplete(profile);
+      navigate('/dashboard');
+    } catch (profileError) {
+      setError(profileError.message || 'Unable to save profile');
+    }
   };
 
   const swimFish = [

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, CheckCircle2, Compass, Lock, Play, Star, Target, Hand } from 'lucide-react';
 import { fetchJson } from '../../lib/api';
 import { groupWordsByChapter, normalizeWordEntry } from '../../lib/vocabulary';
+import { getStoredStudyProgress, loadStudyProgress } from './studyVoyage';
 
 export default function WordStudy() {
   const navigate = useNavigate();
@@ -10,13 +11,19 @@ export default function WordStudy() {
   const [chapters, setChapters] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [completedWords, setCompletedWords] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem('handspeak_completed_words') || '[]');
-    } catch {
-      return [];
-    }
-  });
+  const [completedWords, setCompletedWords] = useState(() => getStoredStudyProgress().completed_phrases || []);
+
+  useEffect(() => {
+    let active = true;
+    loadStudyProgress().then((progress) => {
+      if (!active) return;
+      setCompletedWords(progress.completed_phrases || []);
+    });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     let active = true;

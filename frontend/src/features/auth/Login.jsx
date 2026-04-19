@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Fish, Eye, EyeOff } from 'lucide-react';
+import { postJson } from '../../lib/api';
 
 export default function Login({ onLogin }) {
   const navigate = useNavigate();
@@ -10,16 +11,20 @@ export default function Login({ onLogin }) {
   const [error, setError]       = useState('');
   const [showPass, setShowPass] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     if (!email || !password) { setError('Please fill in all fields.'); return; }
     if (!agreed)             { setError('Please agree to the terms.'); return; }
-    const user = { id: 1, email, nickname: null };
-    localStorage.setItem('handspeak_user', JSON.stringify(user));
-    onLogin(user);
-    const profile = localStorage.getItem('handspeak_profile');
-    navigate(profile ? '/dashboard' : '/welcome');
+
+    try {
+      const user = await postJson('/api/auth/signin', { email, password });
+      localStorage.setItem('handspeak_user', JSON.stringify(user));
+      onLogin(user);
+      navigate(user.profile_complete ? '/dashboard' : '/welcome');
+    } catch (signInError) {
+      setError(signInError.message || 'Unable to sign in');
+    }
   };
 
   return (

@@ -4,6 +4,7 @@ import { X, Circle, ChevronLeft, ChevronRight, Lightbulb, CheckCircle2, RotateCc
 import Camera from '../../components/Camera';
 import { fetchJson, postJson } from '../../lib/api';
 import { findWordIndex, getNextWord, getPreviousWord, normalizeWordEntry } from '../../lib/vocabulary';
+import { getStoredStudyProgress, loadStudyProgress, saveStudyProgress } from './studyVoyage';
 
 const CAPTURE_INTERVAL_MS = 350;
 const REQUIRED_STREAK = 3;
@@ -15,13 +16,7 @@ export default function WordStudySession() {
   const [recording, setRecording] = useState(false);
   const [words, setWords] = useState([]);
   const [currentWord, setCurrentWord] = useState(null);
-  const [completedWords, setCompletedWords] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem('handspeak_completed_words') || '[]');
-    } catch {
-      return [];
-    }
-  });
+  const [completedWords, setCompletedWords] = useState(() => getStoredStudyProgress().completed_phrases || []);
   const [status, setStatus] = useState('Ready to verify');
   const [latestResult, setLatestResult] = useState(null);
   const [matchStreak, setMatchStreak] = useState(0);
@@ -31,6 +26,10 @@ export default function WordStudySession() {
 
   useEffect(() => {
     let active = true;
+    loadStudyProgress().then((progress) => {
+      if (!active) return;
+      setCompletedWords(progress.completed_phrases || []);
+    });
 
     fetchJson('/api/gesture/words')
       .then((data) => {
@@ -104,7 +103,12 @@ export default function WordStudySession() {
                 setLatestResult(null);
                 setCompletedWords((current) => {
                   const next = current.includes(currentWord.id) ? current : [...current, currentWord.id];
-                  localStorage.setItem('handspeak_completed_words', JSON.stringify(next));
+                    const currentProgress = getStoredStudyProgress();
+                    const updatedProgress = {
+                      ...currentProgress,
+                      completed_phrases: next,
+                    };
+                    saveStudyProgress(updatedProgress);
                   return next;
                 });
                 if (nextWord) {

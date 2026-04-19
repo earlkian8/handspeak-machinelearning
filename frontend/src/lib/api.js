@@ -45,3 +45,10 @@ export function postJson(path, body) {
     body: JSON.stringify(body),
   });
 }
+
+export function putJson(path, body) {
+  return fetchJson(path, {
+    method: 'PUT',
+    body: JSON.stringify(body),
+  });
+}

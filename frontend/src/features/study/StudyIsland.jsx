@@ -5,6 +5,7 @@ import {
   getIslandById,
   getInitialStudyProgress,
   getStoredStudyProgress,
+  loadStudyProgress,
   saveStudyProgress,
   isIslandUnlocked,
   isLevelCompleted,
@@ -32,9 +33,19 @@ export default function StudyIsland() {
   const [progress, setProgress] = useState(getInitialStudyProgress());
 
   useEffect(() => {
-    const normalized = getStoredStudyProgress();
-    setProgress(normalized);
-    saveStudyProgress(normalized);
+    let active = true;
+    const cached = getStoredStudyProgress();
+    setProgress(cached);
+
+    loadStudyProgress().then((normalized) => {
+      if (!active) return;
+      setProgress(normalized);
+      saveStudyProgress(normalized);
+    });
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   const island = useMemo(() => getIslandById(islandId), [islandId]);

@@ -1,6 +1,8 @@
 import { STUDY_TOPICS, ALPHABET_TOPICS } from '../../data/aslData';
+import { fetchJson, postJson } from '../../lib/api';
 
 export const STUDY_PROGRESS_STORAGE_KEY = 'handspeak_study_progress';
+const USER_STORAGE_KEY = 'handspeak_user';
 
 const XP_PER_LEVEL = 10;
 const XP_PER_BOSS = 40;
@@ -344,6 +346,37 @@ export const getStoredStudyProgress = () => {
 
 export const saveStudyProgress = (progress) => {
   localStorage.setItem(STUDY_PROGRESS_STORAGE_KEY, JSON.stringify(progress));
+
+  try {
+    const user = JSON.parse(localStorage.getItem(USER_STORAGE_KEY) || 'null');
+    if (user?.id) {
+      void postJson(`/api/study/progress/${user.id}`, { progress }).catch(() => {});
+    }
+  } catch {
+    // Local cache is still updated above.
+  }
+};
+
+export const loadStudyProgress = async () => {
+  try {
+    const user = JSON.parse(localStorage.getItem(USER_STORAGE_KEY) || 'null');
+    if (!user?.id) {
+      return getStoredStudyProgress();
+    }
+
+    const progress = await fetchJson(`/api/study/progress/${user.id}`);
+    const normalized = normalizeStudyProgress(progress);
+    localStorage.setItem(STUDY_PROGRESS_STORAGE_KEY, JSON.stringify(normalized));
+    return normalized;
+  } catch {
+    return getStoredStudyProgress();
+  }
+};
+
+export const resetStudyProgress = () => {
+  const initial = getInitialStudyProgress();
+  saveStudyProgress(initial);
+  return initial;
 };
 
 export const getIslandById = (islandId) => STUDY_ISLANDS.find((island) => island.id === islandId);

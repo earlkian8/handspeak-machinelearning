@@ -7,10 +7,12 @@ from data.asl_data import (
     ALPHABET_TOPICS
 )
 from models.schemas import GestureVerificationRequest, GestureVerificationResponse, GestureMatch
+from services.supabase_store import get_store
 
 
 router = APIRouter(prefix="/api/gesture", tags=["gesture"])
 logger = get_logger("handspeak.routes.gesture")
+store = get_store()
 ALPHABET_LABELS = {entry["label"].upper() for entry in ALL_PRACTICE_LETTERS}
 
 
@@ -61,6 +63,26 @@ def _extract_frames(body: GestureVerificationRequest) -> list[str]:
     if not frames:
         raise HTTPException(status_code=400, detail="At least one frame or image is required")
     return frames
+
+
+def _record_verification(body: GestureVerificationRequest, result: GestureVerificationResponse) -> None:
+    try:
+        store.record_gesture_verification(
+            user_id=body.user_id,
+            target_word=body.target_word,
+            model_type=body.model_type,
+            threshold=body.threshold,
+            is_match=result.is_match,
+            similarity=result.similarity,
+            target_similarity=result.target_similarity,
+            top_matches=[match.model_dump() for match in result.top_matches],
+            frames=body.frames,
+            image_data=body.image,
+            request_payload=body.model_dump(),
+            response_payload=result.model_dump(),
+        )
+    except Exception:
+        logger.exception("verification_log_failed target=%s model_type=%s", body.target_word, body.model_type)
 
 
 def _build_response(target: str, result: dict) -> GestureVerificationResponse:
@@ -134,6 +156,7 @@ def _verify_static_internal(body: GestureVerificationRequest) -> GestureVerifica
         response_payload.is_match,
         response_payload.similarity,
     )
+    _record_verification(body, response_payload)
     return response_payload
 
 
@@ -179,6 +202,7 @@ def _verify_dynamic_internal(body: GestureVerificationRequest) -> GestureVerific
         response_payload.is_match,
         response_payload.similarity,
     )
+    _record_verification(body, response_payload)
     return response_payload
 
 
