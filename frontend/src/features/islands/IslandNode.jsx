@@ -235,6 +235,28 @@ export default function IslandNode({
                 <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 99, background: 'rgba(52,211,153,0.15)', color: '#6ee7b7' }}>Converse</span>
               )}
             </div>
+
+            {island.masteryScores && island.masteryScores.is_unlocked && (
+              <div style={{ marginTop: 10, marginBottom: 12, padding: '8px 10px', borderRadius: 10, background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.08)', textAlign: 'left' }}>
+                <div style={{ fontSize: 9, fontWeight: 900, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: 8 }}>Mastery Axes</div>
+                {[
+                  { label: "Accuracy", score: island.masteryScores.accuracy_score || 0, color: "#34d399" },
+                  { label: "Comprehension", score: island.masteryScores.comprehension_score || 0, color: "#60a5fa" },
+                  { label: "Timing", score: island.masteryScores.timing_score || 0, color: "#a855f7" }
+                ].map(stat => (
+                  <div key={stat.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5 }}>
+                    <span style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.7)', fontWeight: 800 }}>{stat.label}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <div style={{ width: 44, height: 4.5, background: 'rgba(255,255,255,0.12)', borderRadius: 99, overflow: 'hidden' }}>
+                         <div style={{ height: '100%', width: `${stat.score}%`, background: stat.color, borderRadius: 99, transition: 'width 0.5s ease-out' }} />
+                      </div>
+                      <span style={{ fontSize: 10, color: 'white', fontWeight: 900, width: 20, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{stat.score}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
             <div style={{ height: 4, borderRadius: 99, background: 'rgba(255,255,255,0.12)', overflow: 'hidden' }}>
               <div style={{
                 height: '100%', borderRadius: 99,

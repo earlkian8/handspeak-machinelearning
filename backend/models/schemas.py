@@ -95,3 +95,17 @@ class AlphabetVerificationResponse(BaseModel):
     is_match: bool
     top_matches: List[GestureMatch] = Field(default_factory=list)
     message: Optional[str] = None
+
+
+class IslandMasteryScore(BaseModel):
+    island_id: str
+    comprehension_score: int
+    accuracy_score: int
+    timing_score: int
+    repair_score: int
+    is_unlocked: bool
+    is_completed: bool
+
+class IslandProgressResponse(BaseModel):
+    islands: List[IslandMasteryScore]
+    overall_readiness: int

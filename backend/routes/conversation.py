@@ -18,6 +18,7 @@ from data.conversation_prompts import (
     get_prompt,
     get_prompts_for_island,
 )
+from data.island_metadata import build_islands
 from data.response_types import (
     RESPONSE_TYPES,
     classify_word,
@@ -36,6 +37,105 @@ store = get_store()
 
 REPLY_QUEST_THRESHOLD = 0.40
 REPLY_QUEST_TOP_K = 5
+
+MASTERY_UNLOCK_THRESHOLD = 70
+
+def _get_island_order() -> list[str]:
+    return [i["id"] for i in build_islands()]
+
+def _update_mastery(user_id: int, island_id: str, is_correct: bool, confidence: float, type_correct: bool | None):
+    """Dynamic axis update logic for Phase 4."""
+    row = store._fetchone(
+        "SELECT * FROM island_mastery WHERE user_id = %s AND island_id = %s",
+        (user_id, island_id)
+    )
+    
+    if not row:
+        return
+        
+    record = row
+    
+    # Scoring Matrix (weighted moving average for smoothing)
+    alpha = 0.3
+    
+    # Accuracy: Based on exact match
+    new_acc = 100 if is_correct else (50 if type_correct else 0)
+    acc_score = int(record["accuracy_score"] * (1 - alpha) + new_acc * alpha)
+    
+    # Comprehension: Did they get the right response class?
+    new_comp = 100 if type_correct else 0
+    comp_score = int(record["comprehension_score"] * (1 - alpha) + new_comp * alpha)
+    
+    # Timing (Confidence stands in for timing stability for now)
+    new_timing = min(100, int(confidence * 100))
+    timing_score = int(record["timing_score"] * (1 - alpha) + new_timing * alpha)
+    
+    store._execute("""
+        UPDATE island_mastery 
+        SET accuracy_score = %s, comprehension_score = %s, timing_score = %s, last_played_at = NOW() 
+        WHERE id = %s
+    """, (acc_score, comp_score, timing_score, record["id"]))
+
+@router.get("/progress/{user_id}", response_model=dict)
+def get_user_progress(user_id: int):
+    """Fetch mastery for all islands and determine dynamic unlock states."""
+    # Get user's mastery records
+    rows = store._fetchall("SELECT * FROM island_mastery WHERE user_id = %s", (user_id,))
+    mastery_records = {row["island_id"]: row for row in rows} if rows else {}
+    
+    progress = []
+    previous_island_completed = True # First island is always unlocked
+    
+    island_order = _get_island_order()
+    for island_id in island_order:
+        record = mastery_records.get(island_id)
+        
+        if record:
+            # Calculate composite score
+            avg_score = (
+                record["comprehension_score"] + 
+                record["accuracy_score"] + 
+                record["timing_score"] + 
+                record["repair_score"]
+            ) / 4.0
+            is_completed = avg_score >= MASTERY_UNLOCK_THRESHOLD
+            
+            # Auto-update if threshold met
+            if is_completed and not record["is_completed"]:
+                store._execute("UPDATE island_mastery SET is_completed = TRUE WHERE id = %s", (record["id"],))
+                record["is_completed"] = True
+                
+            is_unlocked = record.get("is_unlocked", previous_island_completed)
+        else:
+            is_completed = False
+            # Unlock logic: unlock if previous island was completed, or if it's the first island
+            is_unlocked = previous_island_completed
+            
+            # Initialize empty record if unlocked
+            if is_unlocked:
+                new_id_row = store._fetchone("""
+                    INSERT INTO island_mastery (user_id, island_id, is_unlocked)
+                    VALUES (%s, %s, %s) RETURNING id
+                """, (user_id, island_id, True))
+                record = {
+                    "id": new_id_row["id"] if new_id_row else None,
+                    "user_id": user_id,
+                    "island_id": island_id,
+                    "is_unlocked": True,
+                    "comprehension_score": 0, "accuracy_score": 0, "timing_score": 0, "repair_score": 0, "is_completed": False
+                }
+            else:
+                record = {
+                    "island_id": island_id,
+                    "is_unlocked": False,
+                    "is_completed": False,
+                    "comprehension_score": 0, "accuracy_score": 0, "timing_score": 0, "repair_score": 0
+                }
+
+        progress.append(record)
+        previous_island_completed = is_completed
+
+    return {"islands": progress}
 
 
 class SessionStartPayload(BaseModel):
@@ -194,8 +294,20 @@ def submit_attempt(payload: SessionSubmitPayload):
         threshold=REPLY_QUEST_THRESHOLD,
         user_id=payload.user_id,
     )
-    verification = _verify_dynamic_internal(verify_request)
+    target_confidence = getattr(verification, "target_similarity", 0.0)
     scored = _score_attempt(prompt, verification)
+    
+    if payload.user_id:
+        try:
+            _update_mastery(
+                user_id=payload.user_id,
+                island_id=island_id,
+                is_correct=scored["is_correct"],
+                confidence=target_confidence,
+                type_correct=scored["_type_correct"],
+            )
+        except Exception as e:
+            logger.error(f"Failed to update mastery in submit_attempt: {e}")
 
     try:
         store.append_conversation_attempt(
@@ -459,6 +571,19 @@ def submit_chain_turn(payload: ChainSubmitPayload):
 
     # Reuse Phase 2 scoring (prompt dict has same shape as turn dict for scoring)
     scored = _score_attempt(turn, verification)
+    target_confidence = getattr(verification, "target_similarity", 0.0)
+
+    if payload.user_id:
+        try:
+            _update_mastery(
+                user_id=payload.user_id,
+                island_id=session["island_id"],
+                is_correct=scored["is_correct"],
+                confidence=target_confidence,
+                type_correct=scored["_type_correct"],
+            )
+        except Exception as e:
+            logger.error(f"Failed to update mastery in submit_chain_turn: {e}")
 
     attempt_number = prior_attempts_this_turn + 1
     is_last_attempt = attempt_number >= max_attempts

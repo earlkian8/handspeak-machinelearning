@@ -1,13 +1,8 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, MessageCircle, Map as MapIcon, RotateCcw } from 'lucide-react';
-import {
-  getStoredStudyProgress,
-  loadStudyProgress,
-  isIslandUnlocked,
-  isIslandCompleted,
-  getIslandProgress,
-} from '../study/studyVoyage';
+import { getStoredStudyProgress, getIslandProgress, loadStudyProgress } from '../study/studyVoyage';
+import { fetchJson } from '../../lib/api';
 import { useIslands } from '../../contexts/IslandsContext';
 import IslandNode from './IslandNode';
 import Skeleton from '../../components/Skeleton';
@@ -15,34 +10,59 @@ import Skeleton from '../../components/Skeleton';
 export default function IslandsHub() {
   const navigate = useNavigate();
   const { islands: rawIslands, islandsLoading, error } = useIslands();
-  const [progress, setProgress] = useState(() => getStoredStudyProgress());
+  const [masteryProgress, setMasteryProgress] = useState(null);
+  const [loadingProgress, setLoadingProgress] = useState(true);
+  const [localProgress, setLocalProgress] = useState(() => getStoredStudyProgress());
   const mapContainerRef = useRef(null);
+
+  const user = JSON.parse(localStorage.getItem('handspeak_user') || '{}');
 
   useEffect(() => {
     let active = true;
-    loadStudyProgress().then((normalized) => {
-      if (active) setProgress(normalized);
-    });
+    loadStudyProgress().then((p) => { if (active) setLocalProgress(p); });
+    if (user?.id) {
+      fetchJson(`/api/conversation/progress/${user.id}`)
+        .then((data) => {
+          if (active) {
+            setMasteryProgress(data.islands);
+            setLoadingProgress(false);
+          }
+        })
+        .catch((e) => {
+          console.error("Failed to load map progress", e);
+          if (active) setLoadingProgress(false);
+        });
+    } else {
+      setLoadingProgress(false);
+    }
     return () => { active = false; };
-  }, []);
+  }, [user?.id]);
 
-  const islands = useMemo(() => rawIslands.map((island) => {
-    const unlocked = isIslandUnlocked(progress, island.id);
-    const completed = isIslandCompleted(progress, island.id);
-    const islandProgress = getIslandProgress(progress, island.id);
-    return {
-      ...island,
-      unlocked,
-      completed,
-      active: unlocked && !completed, // Currently active node
-      doneLevels: islandProgress.completedLevelIds.length,
-      totalLevels: island.levels.length,
-    };
-  }), [rawIslands, progress]);
+  const islands = useMemo(() => {
+    if (!masteryProgress || rawIslands.length === 0) return [];
+    
+    return rawIslands.map((island) => {
+      const record = masteryProgress.find(m => m.island_id === island.id);
+      const islandProgress = getIslandProgress(localProgress, island.id);
+      
+      const unlocked = record ? record.is_unlocked : false;
+      const completed = record ? record.is_completed : false;
+      
+      return {
+        ...island,
+        unlocked,
+        completed,
+        masteryScores: record || null,
+        active: unlocked && !completed, // Currently active node
+        doneLevels: islandProgress.completedLevelIds.length,
+        totalLevels: island.levels.length,
+      };
+    });
+  }, [rawIslands, masteryProgress, localProgress]);
 
   // Auto-scroll to the currently active island
   useEffect(() => {
-    if (!islandsLoading && islands.length > 0 && mapContainerRef.current) {
+    if (!islandsLoading && !loadingProgress && islands.length > 0 && mapContainerRef.current) {
       const activeIndex = islands.findIndex(i => i.active);
       const targetIndex = activeIndex >= 0 ? activeIndex : 0;
       
@@ -147,7 +167,7 @@ export default function IslandsHub() {
             }}
             className="hide-scrollbar"
           >
-            {islandsLoading && islands.length === 0 ? (
+            {(islandsLoading || loadingProgress) || islands.length === 0 ? (
               <div style={{ display: 'flex', gap: 0, alignItems: 'center', opacity: 0.5 }}>
                  {[1,2,3,4,5].map(i => (
                     <div key={i} style={{ width: 340, flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 24 }}>

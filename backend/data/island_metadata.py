@@ -209,16 +209,22 @@ def _build_vocab_island(topic: dict, order: int, idx: int) -> dict[str, Any]:
 
 
 def build_islands() -> list[dict[str, Any]]:
-    """Return the full ordered island list: conversation → alphabet → vocabulary."""
+    """Return the full ordered island list: alphabet -> conversation(greetings) -> vocabulary."""
     from data.asl_data import ALPHABET_TOPICS, STUDY_TOPICS
 
-    result: list[dict[str, Any]] = list(CONVERSATION_ISLANDS)
+    result: list[dict[str, Any]] = []
 
-    base_order = len(CONVERSATION_ISLANDS) + 1
+    base_order = 1
     for idx, topic in enumerate(ALPHABET_TOPICS):
         result.append(_build_alphabet_island(topic, base_order + idx))
 
     base_order += len(ALPHABET_TOPICS)
+    for idx, island in enumerate(CONVERSATION_ISLANDS):
+        island_copy = island.copy()
+        island_copy["order"] = base_order + idx
+        result.append(island_copy)
+
+    base_order += len(CONVERSATION_ISLANDS)
     for idx, topic in enumerate(STUDY_TOPICS):
         result.append(_build_vocab_island(topic, base_order + idx, idx))
 
