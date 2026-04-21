@@ -183,7 +183,17 @@ export default function ReplyQuestSession() {
           accuracy: response.total_count ? response.correct_count / response.total_count : 0,
         });
       }
-      finishProcessingFeedback(true, 'Gesture checked successfully.');
+      if (response.is_correct) {
+        finishProcessingFeedback(
+          true,
+          `Correct. Closest read: ${(response.matched_word || currentPrompt.expected_word).toUpperCase()} · Confidence ${Number(response.confidence || 0).toFixed(2)}`,
+        );
+      } else {
+        finishProcessingFeedback(
+          false,
+          `Wrong gesture. Closest: ${(response.matched_word || 'unknown').toUpperCase()} · Confidence ${Number(response.confidence || 0).toFixed(2)}`,
+        );
+      }
     } catch (error) {
       setStatus(error.message || 'Scoring failed. Try again.');
       setReadyToSubmit(true);

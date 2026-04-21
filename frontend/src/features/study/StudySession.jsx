@@ -185,21 +185,25 @@ export default function StudySession() {
       setLatestResult(response);
 
       if (response.is_match) {
-        setMatchStreak((value) => {
-          const next = value + 1;
-          setStatus(`Correct sign ${next}/${REQUIRED_STREAK}. ${next >= REQUIRED_STREAK ? 'Completing level...' : 'Record again then submit.'}`);
-          if (next >= REQUIRED_STREAK) {
-            setRecording(false);
-            markComplete();
-            return 0;
-          }
-          return next;
-        });
+        const nextStreak = matchStreak + 1;
+        if (nextStreak >= REQUIRED_STREAK) {
+          setMatchStreak(0);
+          setRecording(false);
+          setStatus(`Correct sign ${REQUIRED_STREAK}/${REQUIRED_STREAK}. Completing level...`);
+          finishProcessingFeedback(true, `Correct! Streak ${REQUIRED_STREAK}/${REQUIRED_STREAK}. Level complete.`);
+          markComplete();
+        } else {
+          setMatchStreak(nextStreak);
+          setStatus(`Correct sign ${nextStreak}/${REQUIRED_STREAK}. Record again then submit.`);
+          finishProcessingFeedback(true, `Correct! Streak ${nextStreak}/${REQUIRED_STREAK}.`);
+        }
       } else {
+        const similarity = Number(response.similarity ?? 0).toFixed(3);
+        const bestMatch = String(response.best_match || 'unknown').toUpperCase();
         setMatchStreak(0);
-        setStatus(`Not matched. Closest match: ${response.best_match}`);
+        setStatus(`Wrong gesture. Closest: ${bestMatch} · Similarity ${similarity}`);
+        finishProcessingFeedback(false, `Wrong gesture. Closest: ${bestMatch} · Similarity ${similarity}`);
       }
-      finishProcessingFeedback(true, 'Gesture checked successfully.');
     } catch (error) {
       setMatchStreak(0);
       setStatus(error.message || 'Verification failed');
@@ -208,7 +212,7 @@ export default function StudySession() {
     } finally {
       isSubmittingRef.current = false;
     }
-  }, [targetWord, levelUnlocked, minFramesForVerify, panelTitle, verifyEndpoint, verifyThreshold, finishProcessingFeedback, startProcessingFeedback]);
+  }, [targetWord, levelUnlocked, minFramesForVerify, panelTitle, verifyEndpoint, verifyThreshold, finishProcessingFeedback, matchStreak, startProcessingFeedback]);
 
   const handleRecordToggle = useCallback(() => {
     if (!levelUnlocked) {
@@ -635,8 +639,16 @@ export default function StudySession() {
 
           <div style={{
             borderRadius: 14,
-            background: latestResult?.is_match ? 'rgba(34,197,94,0.16)' : 'rgba(255,255,255,0.08)',
-            border: '1px solid rgba(255,255,255,0.14)',
+            background: latestResult
+              ? latestResult.is_match
+                ? 'rgba(34,197,94,0.16)'
+                : 'rgba(239,68,68,0.16)'
+              : 'rgba(255,255,255,0.08)',
+            border: latestResult
+              ? latestResult.is_match
+                ? '1px solid rgba(74,222,128,0.35)'
+                : '1px solid rgba(248,113,113,0.4)'
+              : '1px solid rgba(255,255,255,0.14)',
             padding: '11px 12px',
             display: 'flex',
             flexDirection: 'column',
@@ -645,18 +657,18 @@ export default function StudySession() {
             <span style={{ fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 900, color: 'rgba(255,255,255,0.56)' }}>
               Live Verification
             </span>
-            <p style={{ margin: 0, fontSize: 14, color: 'white', fontWeight: 800 }}>{status}</p>
-            <p style={{ margin: 0, fontSize: 12, color: 'rgba(255,255,255,0.68)' }}>
+            <p style={{ margin: 0, fontSize: 14, color: latestResult ? (latestResult.is_match ? '#bbf7d0' : '#fecaca') : 'white', fontWeight: 800 }}>{status}</p>
+            <p style={{ margin: 0, fontSize: 12, color: latestResult ? (latestResult.is_match ? 'rgba(187,247,208,0.9)' : 'rgba(254,202,202,0.9)') : 'rgba(255,255,255,0.68)' }}>
               {latestResult
-                ? `Best: ${latestResult.best_match} · Similarity: ${latestResult.similarity.toFixed(3)}`
+                ? `Best: ${String(latestResult.best_match || 'unknown').toUpperCase()} · Similarity: ${Number(latestResult.similarity ?? 0).toFixed(3)}`
                 : 'Press record and hold the target sign in frame.'}
             </p>
             <p style={{ margin: 0, fontSize: 11, color: 'rgba(255,255,255,0.56)' }}>
               Model: {verifyModelType === 'static' ? 'Static (letter)' : 'Dynamic (word)'}
             </p>
-            {matchStreak > 0 && (
-              <p style={{ margin: 0, fontSize: 12, color: '#86efac', fontWeight: 800 }}>
-                Correct streak: {matchStreak}/{REQUIRED_STREAK}
+            {latestResult && (
+              <p style={{ margin: 0, fontSize: 12, color: latestResult.is_match ? '#86efac' : '#fca5a5', fontWeight: 800 }}>
+                Streak: {matchStreak}/{REQUIRED_STREAK}{latestResult.is_match ? '' : ' (reset on miss)'}
               </p>
             )}
           </div>

@@ -193,7 +193,17 @@ export default function ChainSession() {
       if (result.is_chain_complete && result.chain_summary) {
         setChainSummary(result.chain_summary);
       }
-      finishProcessingFeedback(true, 'Gesture checked successfully.');
+      if (result.is_correct) {
+        finishProcessingFeedback(
+          true,
+          `Correct. Closest read: ${(result.matched_word || currentTurn.expected_word).toUpperCase()} · Confidence ${Number(result.confidence || 0).toFixed(2)}`,
+        );
+      } else {
+        finishProcessingFeedback(
+          false,
+          `Wrong gesture. Closest: ${(result.matched_word || 'unknown').toUpperCase()} · Confidence ${Number(result.confidence || 0).toFixed(2)}`,
+        );
+      }
     } catch (err) {
       setStatus(err.message || 'Scoring failed. Try again.');
       setReadyToSubmit(true);

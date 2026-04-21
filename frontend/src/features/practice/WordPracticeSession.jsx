@@ -141,20 +141,24 @@ export default function WordPracticeSession() {
       setLatestResult(response);
 
       if (response.is_match) {
-        setMatchStreak((value) => {
-          const nextValue = value + 1;
-          setStatus(`Match ${nextValue}/${REQUIRED_STREAK}${nextValue >= REQUIRED_STREAK ? '. Advancing...' : '. Record again then submit.'}`);
-          if (nextValue >= REQUIRED_STREAK) {
-            advanceToNextWord();
-            return 0;
-          }
-          return nextValue;
-        });
+        const nextStreak = matchStreak + 1;
+        if (nextStreak >= REQUIRED_STREAK) {
+          setMatchStreak(0);
+          setStatus(`Match ${REQUIRED_STREAK}/${REQUIRED_STREAK}. Advancing...`);
+          finishProcessingFeedback(true, `Correct! Streak ${REQUIRED_STREAK}/${REQUIRED_STREAK}.`);
+          advanceToNextWord();
+        } else {
+          setMatchStreak(nextStreak);
+          setStatus(`Match ${nextStreak}/${REQUIRED_STREAK}. Record again then submit.`);
+          finishProcessingFeedback(true, `Correct! Streak ${nextStreak}/${REQUIRED_STREAK}.`);
+        }
       } else {
+        const similarity = Number(response.similarity ?? 0).toFixed(3);
+        const bestMatch = String(response.best_match || 'unknown').toUpperCase();
         setMatchStreak(0);
-        setStatus(`Not matched. Closest: ${response.best_match}. Try again.`);
+        setStatus(`Wrong gesture. Closest: ${bestMatch} · Similarity ${similarity}`);
+        finishProcessingFeedback(false, `Wrong gesture. Closest: ${bestMatch} · Similarity ${similarity}`);
       }
-      finishProcessingFeedback(true, 'Gesture checked successfully.');
     } catch (error) {
       setStatus(error.message || 'Verification failed');
       setMatchStreak(0);
@@ -163,7 +167,7 @@ export default function WordPracticeSession() {
     } finally {
       isSubmittingRef.current = false;
     }
-  }, [advanceToNextWord, currentWord, finishProcessingFeedback, startProcessingFeedback]);
+  }, [advanceToNextWord, currentWord, finishProcessingFeedback, matchStreak, startProcessingFeedback]);
 
   const handleRecordToggle = useCallback(() => {
     if (isSubmittingRef.current || isCountingDown) return;
@@ -424,15 +428,37 @@ export default function WordPracticeSession() {
             <span><strong>Tip:</strong> {currentWord.tip}</span>
           </div>
 
-          <div style={{ borderRadius: 16, background: latestResult?.is_match ? 'rgba(34,197,94,0.16)' : 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{
+            borderRadius: 16,
+            background: latestResult
+              ? latestResult.is_match
+                ? 'rgba(34,197,94,0.16)'
+                : 'rgba(239,68,68,0.16)'
+              : 'rgba(255,255,255,0.08)',
+            border: latestResult
+              ? latestResult.is_match
+                ? '1px solid rgba(74,222,128,0.35)'
+                : '1px solid rgba(248,113,113,0.4)'
+              : '1px solid rgba(255,255,255,0.12)',
+            padding: '12px 14px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 8,
+          }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
               <span style={{ fontSize: 11, letterSpacing: '0.16em', textTransform: 'uppercase', fontWeight: 900, color: 'rgba(255,255,255,0.56)' }}>Model Status</span>
               {latestResult?.is_match ? <CheckCircle2 size={16} color="#4ade80" /> : null}
             </div>
-            <p style={{ margin: 0, fontSize: 14, color: 'white', fontWeight: 800 }}>{status}</p>
-            <p style={{ margin: 0, fontSize: 12, color: 'rgba(255,255,255,0.65)' }}>{latestResult ? `Best match: ${latestResult.best_match} · Similarity: ${latestResult.similarity.toFixed(3)}` : 'Start recording to send frames to the model.'}</p>
-            {matchStreak > 0 && (
-              <p style={{ margin: 0, fontSize: 12, color: '#86efac', fontWeight: 800 }}>Progress streak: {matchStreak}/{REQUIRED_STREAK}</p>
+            <p style={{ margin: 0, fontSize: 14, color: latestResult ? (latestResult.is_match ? '#bbf7d0' : '#fecaca') : 'white', fontWeight: 800 }}>{status}</p>
+            <p style={{ margin: 0, fontSize: 12, color: latestResult ? (latestResult.is_match ? 'rgba(187,247,208,0.9)' : 'rgba(254,202,202,0.9)') : 'rgba(255,255,255,0.65)' }}>
+              {latestResult
+                ? `Best match: ${String(latestResult.best_match || 'unknown').toUpperCase()} · Similarity: ${Number(latestResult.similarity ?? 0).toFixed(3)}`
+                : 'Start recording to send frames to the model.'}
+            </p>
+            {latestResult && (
+              <p style={{ margin: 0, fontSize: 12, color: latestResult.is_match ? '#86efac' : '#fca5a5', fontWeight: 800 }}>
+                Progress streak: {matchStreak}/{REQUIRED_STREAK}{latestResult.is_match ? '' : ' (reset on miss)'}
+              </p>
             )}
           </div>
 
