@@ -1,4 +1,4 @@
-FROM python:3.10
+FROM python:3.10-slim
 
 WORKDIR /app
 
@@ -13,7 +13,7 @@ RUN apt-get update && apt-get install -y \
 
 COPY backend/requirements.txt ./backend/requirements.txt
 
-RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
+RUN pip install --upgrade pip setuptools wheel
 RUN pip install --no-cache-dir -r backend/requirements.txt
 
 COPY backend/ ./backend/
