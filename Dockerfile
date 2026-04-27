@@ -4,12 +4,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxcb1 \
     libgl1 \
     libglib2.0-0 \
+    libgomp1 \
+    libxext6 \
+    libxrender1 \
+    libsm6 \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
 COPY backend/requirements.txt ./backend/requirements.txt
 RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
+RUN pip install --no-cache-dir opencv-contrib-python-headless
 RUN pip install --no-cache-dir -r backend/requirements.txt
 
 COPY backend/ ./backend/
