@@ -1,5 +1,3 @@
-import os
-
 from fastapi import FastAPI
 from fastapi import Request
 from fastapi.responses import JSONResponse
@@ -22,19 +20,9 @@ logger = get_logger("handspeak.main")
 
 app = FastAPI(title="HandSpeak API", version="1.0.0")
 
-_DEFAULT_ORIGINS = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-]
-_extra = os.getenv("ALLOWED_ORIGINS", "")
-_allowed_origins = _DEFAULT_ORIGINS + [o.strip() for o in _extra.split(",") if o.strip()]
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=_allowed_origins,
-    allow_credentials=True,
+    allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
