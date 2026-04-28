@@ -2,6 +2,7 @@ import React, { useCallback, useRef, useState } from 'react';
 import { ChevronRight, RotateCcw, X } from 'lucide-react';
 
 const BLOB_BASE = import.meta.env.VITE_BLOB_BASE_URL || 'https://2hku3a621tdz3iiv.public.blob.vercel-storage.com/videos';
+const ALPHA_BASE = 'https://www.lifeprint.com/asl101/fingerspelling/abc-gifs';
 
 const FILENAME_OVERRIDES = {
   hesheit: 'heshiet',
@@ -28,7 +29,7 @@ export function markTutorialSkipped() {
   try { localStorage.setItem(SKIP_KEY, 'true'); } catch {}
 }
 
-export default function TutorialModal({ word, onProceed, onSkip }) {
+export default function TutorialModal({ word, isLetter = false, onProceed, onSkip }) {
   const [videoError, setVideoError] = useState(false);
   const videoRef = useRef(null);
 
@@ -44,7 +45,8 @@ export default function TutorialModal({ word, onProceed, onSkip }) {
     onProceed();
   }, [onProceed]);
 
-  const url = word ? getVideoUrl(word) : null;
+  const videoUrl = word && !isLetter ? getVideoUrl(word) : null;
+  const alphaUrl = word && isLetter ? `${ALPHA_BASE}/${word.toLowerCase()}.gif` : null;
 
   return (
     <div style={{
@@ -78,14 +80,20 @@ export default function TutorialModal({ word, onProceed, onSkip }) {
           </button>
         </div>
 
-        {/* ── Video ── */}
+        {/* ── Media ── */}
         <div style={{ padding: '16px 20px 0' }}>
           <div style={{ borderRadius: 14, overflow: 'hidden', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.1)', height: 252, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            {url && !videoError ? (
+            {isLetter && alphaUrl ? (
+              <img
+                src={alphaUrl}
+                alt={`ASL sign for letter ${word?.toUpperCase()}`}
+                style={{ maxHeight: '100%', maxWidth: '100%', objectFit: 'contain' }}
+              />
+            ) : videoUrl && !videoError ? (
               <video
                 ref={videoRef}
-                key={url}
-                src={url}
+                key={videoUrl}
+                src={videoUrl}
                 autoPlay
                 loop
                 controls
@@ -95,21 +103,23 @@ export default function TutorialModal({ word, onProceed, onSkip }) {
             ) : (
               <div style={{ textAlign: 'center', padding: 20 }}>
                 <div style={{ fontSize: 52, fontWeight: 900, color: '#0ea5e9', lineHeight: 1 }}>{word}</div>
-                <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 700, marginTop: 8 }}>ASL Sign — no video available</div>
+                <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 700, marginTop: 8 }}>ASL Sign — no media available</div>
               </div>
             )}
           </div>
         </div>
 
-        {/* ── Replay ── */}
-        <div style={{ padding: '10px 20px 0', display: 'flex', justifyContent: 'flex-end' }}>
-          <button
-            onClick={handleReplay}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 99, padding: '6px 14px', color: 'rgba(255,255,255,0.7)', fontWeight: 800, fontSize: 12, cursor: 'pointer', fontFamily: "'Nunito',sans-serif" }}
-          >
-            <RotateCcw size={13} /> Replay
-          </button>
-        </div>
+        {/* ── Replay (video only) ── */}
+        {!isLetter && (
+          <div style={{ padding: '10px 20px 0', display: 'flex', justifyContent: 'flex-end' }}>
+            <button
+              onClick={handleReplay}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 99, padding: '6px 14px', color: 'rgba(255,255,255,0.7)', fontWeight: 800, fontSize: 12, cursor: 'pointer', fontFamily: "'Nunito',sans-serif" }}
+            >
+              <RotateCcw size={13} /> Replay
+            </button>
+          </div>
+        )}
 
         {/* ── Action buttons ── */}
         <div style={{ padding: '14px 20px 20px', display: 'flex', flexDirection: 'column', gap: 10 }}>

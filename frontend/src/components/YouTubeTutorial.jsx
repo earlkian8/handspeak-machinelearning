@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 
 const BLOB_BASE = import.meta.env.VITE_BLOB_BASE_URL || 'https://2hku3a621tdz3iiv.public.blob.vercel-storage.com/videos';
+const ALPHA_BASE = 'https://www.lifeprint.com/asl101/fingerspelling/abc-gifs';
 
-// Filename differs from word key for these entries
 const FILENAME_OVERRIDES = {
   hesheit: 'heshiet',
   refrigerator: 'refrigirator',
@@ -14,17 +14,15 @@ function getVideoUrl(word) {
   return `${BLOB_BASE}/${filename}.mp4`;
 }
 
-export default function YouTubeTutorial({ word }) {
+export default function YouTubeTutorial({ word, isLetter = false }) {
   const [error, setError] = useState(false);
 
   if (!word) return null;
 
-  const url = getVideoUrl(word);
-
   return (
     <div>
       <p style={{ margin: '0 0 7px', fontSize: 10, fontWeight: 900, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.15em' }}>
-        Tutorial Video
+        Tutorial {isLetter ? 'Image' : 'Video'}
       </p>
       <div style={{
         borderRadius: 14, overflow: 'hidden',
@@ -33,10 +31,17 @@ export default function YouTubeTutorial({ word }) {
         height: 180, flexShrink: 0,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}>
-        {!error ? (
+        {isLetter ? (
+          <img
+            src={`${ALPHA_BASE}/${word.toLowerCase()}.gif`}
+            alt={`ASL sign for letter ${word.toUpperCase()}`}
+            style={{ maxHeight: '100%', maxWidth: '100%', objectFit: 'contain' }}
+            onError={(e) => { e.currentTarget.style.display = 'none'; }}
+          />
+        ) : !error ? (
           <video
-            key={url}
-            src={url}
+            key={getVideoUrl(word)}
+            src={getVideoUrl(word)}
             controls
             loop
             style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
