@@ -9,7 +9,7 @@ const FILENAME_OVERRIDES = {
   refrigerator: 'refrigirator',
 };
 
-function getVideoUrl(word) {
+export function getVideoUrl(word) {
   const key = word.toLowerCase();
   const filename = FILENAME_OVERRIDES[key] ?? key;
   return `${BLOB_BASE}/${filename}.mp4`;

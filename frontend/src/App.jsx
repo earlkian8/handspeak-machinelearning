@@ -16,6 +16,8 @@ import StudySession from './features/study/StudySession';
 import IslandsHub from './features/islands/IslandsHub';
 import IslandOverview from './features/islands/IslandOverview';
 import Converse from './features/converse/Converse';
+import SignQuiz from './features/quiz/SignQuiz';
+import DailyChallenge from './features/daily/DailyChallenge';
 import Settings from './features/settings/Settings';
 
 function App() {
@@ -75,6 +77,8 @@ function App() {
           <Route path="/islands" element={guard(<IslandsHub />)} />
           <Route path="/islands/:islandId" element={guard(<IslandOverview />)} />
           <Route path="/converse" element={guard(<Converse />)} />
+          <Route path="/quiz" element={guard(<SignQuiz />)} />
+          <Route path="/daily" element={guard(<DailyChallenge />)} />
 
           {/* Learn mode (reuses existing Study Voyage screens under the Islands journey) */}
           <Route path="/study" element={<Navigate to="/islands" replace />} />
