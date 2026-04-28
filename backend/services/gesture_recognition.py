@@ -29,7 +29,8 @@ HOLISTIC_TASK_URL = (
 
 SEQUENCE_LENGTH = 30
 FEATURE_DIM = 1629
-NUM_SAMPLED_FRAMES = 30
+NUM_SAMPLED_FRAMES = 30   # model input length (must match training)
+MAX_HOLISTIC_FRAMES = 12  # max unique MediaPipe calls per request
 
 FACE_LM = 468
 POSE_LM = 33
@@ -312,16 +313,29 @@ class GestureRecognitionService:
         if not frames:
             raise ValueError("At least one frame is required")
 
-        if len(frames) < NUM_SAMPLED_FRAMES:
-            sampled_frames = frames + [frames[-1]] * (NUM_SAMPLED_FRAMES - len(frames))
+        # Cap unique MediaPipe calls to avoid request timeouts.
+        # Sample uniformly from available frames, run holistic once per unique frame,
+        # then interpolate the extracted features up to NUM_SAMPLED_FRAMES (30).
+        n_unique = min(len(frames), MAX_HOLISTIC_FRAMES)
+        if n_unique < len(frames):
+            sample_idx = np.round(np.linspace(0, len(frames) - 1, n_unique)).astype(int)
+            unique_frames = [frames[int(i)] for i in sample_idx]
         else:
-            sample_idx = np.linspace(0, len(frames) - 1, NUM_SAMPLED_FRAMES, dtype=int)
-            sampled_frames = [frames[int(idx)] for idx in sample_idx]
+            unique_frames = frames
 
-        sequence = np.stack([self._extract_features(frame) for frame in sampled_frames], axis=0)
+        features = [self._extract_features(f) for f in unique_frames]
+
+        # Interpolate feature list to exactly NUM_SAMPLED_FRAMES via index repetition
+        if len(features) < NUM_SAMPLED_FRAMES:
+            interp_idx = np.round(
+                np.linspace(0, len(features) - 1, NUM_SAMPLED_FRAMES)
+            ).astype(int)
+            features = [features[i] for i in interp_idx]
+
+        sequence = np.stack(features, axis=0)
         if self.active_indices is not None:
             sequence = sequence[:, self.active_indices]
-        return torch.from_numpy(sequence).float().unsqueeze(0).to(self.device)
+        return torch.from_numpy(np.ascontiguousarray(sequence)).float().unsqueeze(0).to(self.device)
 
     def _resolve_target(self, target_word: str) -> str:
         raw = target_word.strip()

@@ -345,8 +345,7 @@ def submit_attempt(payload: SessionSubmitPayload):
             threshold=REPLY_QUEST_THRESHOLD,
             user_id=payload.user_id,
         )
-        from services.unified_gesture_service import verify_dynamic_gesture_internal
-        verification = verify_dynamic_gesture_internal(verify_request)
+        verification = _verify_dynamic_internal(verify_request)
 
     target_confidence = getattr(verification, "target_similarity", 0.0)
     scored = _score_attempt(prompt, verification, situation_id=prompt.get("situation"))
@@ -649,8 +648,7 @@ def submit_chain_turn(payload: ChainSubmitPayload):
             threshold=REPLY_QUEST_THRESHOLD,
             user_id=payload.user_id,
         )
-        from services.unified_gesture_service import verify_dynamic_gesture_internal
-        verification = verify_dynamic_gesture_internal(verify_request)
+        verification = _verify_dynamic_internal(verify_request)
 
     # Reuse Phase 2 scoring (prompt dict has same shape as turn dict for scoring)
     scored = _score_attempt(turn, verification, situation_id=chain.get("situation") if chain else None)

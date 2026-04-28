@@ -17,48 +17,6 @@ MAX_ATTEMPTS_PER_TURN = 2
 
 GREETINGS_CHAINS: list[dict[str, Any]] = [
     {
-        "id": "greetings-first-meeting",
-        "island_id": "greetings",
-        "title": "First Meeting",
-        "situation": "first_meeting",
-        "description": "A 4-turn exchange — hello, how you're doing, a thank you, then goodbye.",
-        "max_attempts_per_turn": MAX_ATTEMPTS_PER_TURN,
-        "turns": [
-            {
-                "turn_index": 0,
-                "npc_line": "A stranger walks up and waves. They sign HELLO to you.",
-                "expected_word": "hello",
-                "acceptable_words": ["hello"],
-                "response_type": "greet-open",
-                "coaching_tip": "Open palm near the forehead, then move outward like a salute.",
-            },
-            {
-                "turn_index": 1,
-                "npc_line": "They smile and sign HOW ARE YOU? You feel great today.",
-                "expected_word": "fine",
-                "acceptable_words": ["fine", "happy"],
-                "response_type": "confirm",
-                "coaching_tip": "Open hand, thumb to chest, move outward.",
-            },
-            {
-                "turn_index": 2,
-                "npc_line": "They say it was nice meeting you and sign THANK YOU.",
-                "expected_word": "thankyou",
-                "acceptable_words": ["thankyou"],
-                "response_type": "gratitude",
-                "coaching_tip": "Fingertips touch chin, then move forward toward the person.",
-            },
-            {
-                "turn_index": 3,
-                "npc_line": "They wave and sign GOODBYE as they head off.",
-                "expected_word": "bye",
-                "acceptable_words": ["bye", "later"],
-                "response_type": "greet-close",
-                "coaching_tip": "Simple wave — open hand, fingers flexing together.",
-            },
-        ],
-    },
-    {
         "id": "greetings-morning-checkin",
         "island_id": "greetings",
         "title": "Morning Check-in",

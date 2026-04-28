@@ -2,10 +2,11 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   X, Circle, CheckCircle2, AlertCircle, ArrowRight, MessageCircle,
-  Trophy, Lightbulb, ChevronDown,
+  Trophy, ChevronDown, Zap,
 } from 'lucide-react';
 import Camera from '../../components/Camera';
 import GestureProcessingModal from '../../components/GestureProcessingModal';
+import TipBox from '../../components/TipBox';
 import { useIslands } from '../../contexts/IslandsContext';
 import { listIslandChains, startChainSession, submitChainTurn } from './conversationApi';
 
@@ -153,7 +154,7 @@ export default function ChainSession() {
 
   const takeFrame = useCallback(() =>
     webcamRef.current?.captureFrame?.() || webcamRef.current?.getScreenshot?.() || null,
-  []);
+    []);
 
   const submitCurrentFrames = useCallback(async (debugOverrideWord = null) => {
     if (isSubmittingRef.current || !currentTurn || !chainSessionId) return;
@@ -332,123 +333,73 @@ export default function ChainSession() {
   const isLastAttempt = attemptsRemaining === 0 && latestTurnResult && !latestTurnResult.should_advance;
 
   return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 50,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: 'rgba(2,10,28,0.92)', backdropFilter: 'blur(10px)',
-      padding: 20, fontFamily: "'Nunito', sans-serif",
-    }}>
-      <div
-        className="flex flex-col md:flex-row w-full max-w-[1060px] max-h-[calc(100vh-40px)] overflow-y-auto md:overflow-hidden"
-        style={{
-        position: 'relative', background: '#0d2240', borderRadius: 28,
-        boxShadow: '0 24px 80px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.08)',
-      }}>
-        <button onClick={() => navigate(`/islands/${islandId}`)}
-          style={{ position: 'absolute', top: 16, right: 16, zIndex: 10, width: 42, height: 42, borderRadius: '50%', background: 'rgba(255,255,255,0.12)', border: '1.5px solid rgba(255,255,255,0.22)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <X size={18} color="white" />
-        </button>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(2,8,22,0.92)', backdropFilter: 'blur(14px)', fontFamily: "'Nunito', sans-serif" }}>
+      <div className="cs-modal" style={{ position: 'relative', display: 'flex', flexDirection: 'column', width: '100%', maxWidth: 1140, maxHeight: 'calc(100vh - 32px)', borderRadius: 24, overflow: 'hidden', background: 'linear-gradient(165deg, #0c1f3d 0%, #081428 100%)', boxShadow: '0 32px 100px rgba(0,0,0,0.8), 0 0 0 1px rgba(110,231,183,0.1)', animation: 'cs-enter 0.35s ease-out' }}>
 
+        {/* Top bar */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 20px', background: 'rgba(0,0,0,0.25)', borderBottom: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <MessageCircle size={16} color="#6ee7b7" />
+            <span style={{ fontSize: 11, fontWeight: 900, color: '#6ee7b7', textTransform: 'uppercase', letterSpacing: '0.16em' }}>{selectedChain.title}</span>
+          </div>
+          <div style={{ flex: 1, textAlign: 'center' }}>
+            <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', fontWeight: 700 }}>Turn {currentTurnIndex + 1} / {totalTurns}</span>
+          </div>
+          <button onClick={() => navigate(`/islands/${islandId}`)} style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <X size={16} color="white" />
+          </button>
+        </div>
+
+        <div className="cs-body" style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         {/* Camera */}
-        <div 
-          className="flex-1 relative overflow-hidden min-h-[400px] md:min-h-[500px]"
-          style={{ 
-            background: '#050d18', 
-            borderRadius: '28px 28px 0 0',
-          }}>
-          <style>{`
-            @media (min-width: 768px) {
-              .flex-1.relative {
-                border-radius: 28px 0 0 28px !important;
-              }
-            }
-          `}</style>
+        <div style={{ flex: 1, position: 'relative', background: '#040c18', minHeight: 420 }}>
           <Camera ref={webcamRef} />
 
-          {/* DEBUG CONTROLS */}
-          <div style={{ position: 'absolute', top: 50, right: 16, zIndex: 50, display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <button onClick={() => submitCurrentFrames(currentTurn.expected_word)}
-              style={{ background: '#10b981', color: 'white', border: 'none', padding: '6px 12px', borderRadius: 8, fontSize: 12, cursor: 'pointer', fontWeight: 'bold' }}>
-              Test: Correct
-            </button>
-            <button onClick={() => submitCurrentFrames('wrongword')}
-              style={{ background: '#ef4444', color: 'white', border: 'none', padding: '6px 12px', borderRadius: 8, fontSize: 12, cursor: 'pointer', fontWeight: 'bold' }}>
-              Test: Wrong Word
-            </button>
-            <button onClick={() => submitCurrentFrames('hello')}
-              style={{ background: '#f59e0b', color: 'white', border: 'none', padding: '6px 12px', borderRadius: 8, fontSize: 12, cursor: 'pointer', fontWeight: 'bold' }}>
-              Test: Wrong Type
-            </button>
-          </div>
+          {/* DEBUG CONTROLS - only in dev */}
+          {import.meta.env.DEV && import.meta.env.VITE_SHOW_DEBUG === 'true' && (
+            <div style={{ position: 'absolute', top: 50, right: 16, zIndex: 50, display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <button onClick={() => submitCurrentFrames(currentTurn.expected_word)}
+                style={{ background: '#10b981', color: 'white', border: 'none', padding: '6px 12px', borderRadius: 8, fontSize: 12, cursor: 'pointer', fontWeight: 'bold' }}>
+                Test: Correct
+              </button>
+              <button onClick={() => submitCurrentFrames('wrongword')}
+                style={{ background: '#ef4444', color: 'white', border: 'none', padding: '6px 12px', borderRadius: 8, fontSize: 12, cursor: 'pointer', fontWeight: 'bold' }}>
+                Test: Wrong Word
+              </button>
+              <button onClick={() => submitCurrentFrames('hello')}
+                style={{ background: '#f59e0b', color: 'white', border: 'none', padding: '6px 12px', borderRadius: 8, fontSize: 12, cursor: 'pointer', fontWeight: 'bold' }}>
+                Test: Wrong Type
+              </button>
+            </div>
+          )}
 
-          <div style={{ position: 'absolute', top: 16, left: 16, background: recording ? 'rgba(239,68,68,0.9)' : 'rgba(0,0,0,0.55)', borderRadius: 99, padding: '6px 14px', display: 'flex', alignItems: 'center', gap: 6 }}>
-            <div style={{ width: 8, height: 8, borderRadius: '50%', background: recording ? 'white' : '#ef4444', animation: recording ? 'rec-blink 1s ease-in-out infinite' : undefined }} />
-            <span style={{ fontSize: 11, fontWeight: 900, color: 'white', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
-              {isCountingDown ? `Starting ${countdown}` : recording ? 'Recording' : readyToSubmit ? 'Ready to submit' : 'Ready'}
+          <div style={{ position: 'absolute', top: 14, left: 14, background: recording ? 'rgba(239,68,68,0.9)' : 'rgba(0,0,0,0.55)', backdropFilter: 'blur(8px)', borderRadius: 99, padding: '5px 12px', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div style={{ width: 7, height: 7, borderRadius: '50%', background: recording ? 'white' : '#ef4444', animation: recording ? 'cs-blink 1s ease-in-out infinite' : undefined }} />
+            <span style={{ fontSize: 10, fontWeight: 900, color: 'white', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+              {isCountingDown ? `Starting ${countdown}` : recording ? 'Recording' : readyToSubmit ? 'Ready' : 'Camera'}
             </span>
           </div>
 
           {isCountingDown && (
-            <div style={{
-              position: 'absolute',
-              inset: 0,
-              zIndex: 9,
-              background: 'rgba(2,10,28,0.45)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              pointerEvents: 'none',
-            }}>
-              <div style={{
-                width: 110,
-                height: 110,
-                borderRadius: '50%',
-                border: '2px solid rgba(255,255,255,0.3)',
-                background: 'rgba(0,0,0,0.45)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'white',
-                fontSize: 46,
-                fontWeight: 900,
-              }}>
-                {countdown}
-              </div>
+            <div style={{ position: 'absolute', inset: 0, zIndex: 9, background: 'rgba(2,10,28,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
+              <div style={{ width: 100, height: 100, borderRadius: '50%', border: '3px solid rgba(110,231,183,0.4)', background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6ee7b7', fontSize: 44, fontWeight: 900 }}>{countdown}</div>
             </div>
           )}
 
-          <div style={{ position: 'absolute', bottom: 28, left: 0, right: 0, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 12 }}>
-            <button onClick={handleRecordToggle}
-              disabled={!!latestTurnResult?.should_advance || isCountingDown}
-              style={{ width: 80, height: 80, borderRadius: '50%', border: `5px solid ${recording ? '#ef4444' : 'rgba(255,255,255,0.85)'}`, background: recording ? '#ef4444' : 'white', cursor: latestTurnResult?.should_advance || isCountingDown ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: recording ? '0 0 0 8px rgba(239,68,68,0.22)' : '0 6px 28px rgba(0,0,0,0.5)', opacity: latestTurnResult?.should_advance || isCountingDown ? 0.5 : 1 }}>
-              <Circle size={30} fill={recording ? 'white' : '#e63946'} color={recording ? 'white' : '#e63946'} />
+          <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '16px 0 20px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 14, background: 'linear-gradient(0deg, rgba(4,12,24,0.85) 0%, transparent 100%)' }}>
+            <button onClick={handleRecordToggle} disabled={!!latestTurnResult?.should_advance || isCountingDown} style={{ width: 68, height: 68, borderRadius: '50%', border: `4px solid ${recording ? '#ef4444' : 'rgba(255,255,255,0.8)'}`, background: recording ? '#ef4444' : 'white', cursor: latestTurnResult?.should_advance || isCountingDown ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: recording ? '0 0 0 6px rgba(239,68,68,0.2)' : '0 4px 20px rgba(0,0,0,0.4)', transition: 'all 0.25s cubic-bezier(0.34,1.56,0.64,1)', opacity: latestTurnResult?.should_advance || isCountingDown ? 0.5 : 1 }}>
+              <Circle size={26} fill={recording ? 'white' : '#e63946'} color={recording ? 'white' : '#e63946'} />
             </button>
-
             {readyToSubmit && !latestTurnResult?.should_advance && (
-              <button
-                onClick={() => submitCurrentFrames()}
-                disabled={isSubmittingRef.current || isCountingDown}
-                style={{
-                  border: 'none',
-                  borderRadius: 12,
-                  padding: '12px 16px',
-                  minWidth: 92,
-                  cursor: isSubmittingRef.current || isCountingDown ? 'not-allowed' : 'pointer',
-                  background: 'linear-gradient(135deg,#34d399,#22d3ee)',
-                  color: '#064e3b',
-                  fontWeight: 900,
-                  fontSize: 13,
-                  opacity: isSubmittingRef.current || isCountingDown ? 0.6 : 1,
-                }}
-              >
-                Submit
+              <button onClick={() => submitCurrentFrames()} disabled={isSubmittingRef.current || isCountingDown} style={{ border: 'none', borderRadius: 99, padding: '10px 20px', cursor: 'pointer', background: 'linear-gradient(135deg,#34d399,#22d3ee)', color: '#064e3b', fontWeight: 900, fontSize: 12, boxShadow: '0 4px 16px rgba(52,211,153,0.3)' }}>
+                <Zap size={13} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} /> Submit
               </button>
             )}
           </div>
         </div>
 
         {/* Right panel */}
-        <div className="w-full md:w-[380px]" style={{ flexShrink: 0, background: 'linear-gradient(180deg,#0f2a54 0%,#091a38 100%)', display: 'flex', flexDirection: 'column', padding: '24px 20px 18px', gap: 12, overflowY: 'auto' }}>
+        <div className="cs-panel" style={{ width: 380, flexShrink: 0, background: 'linear-gradient(180deg,#0e2347 0%,#091832 100%)', display: 'flex', flexDirection: 'column', padding: '22px 20px 18px', gap: 12, overflowY: 'auto', borderLeft: '1px solid rgba(255,255,255,0.06)' }}>
           {/* Header */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span style={{ fontSize: 10, fontWeight: 900, color: '#6ee7b7', textTransform: 'uppercase', letterSpacing: '0.2em' }}>
@@ -523,10 +474,7 @@ export default function ChainSession() {
 
           {/* Coaching tip */}
           {currentTurn.coaching_tip && (
-            <div style={{ background: 'rgba(59,130,246,0.15)', border: '1.5px solid rgba(96,165,250,0.35)', borderRadius: 12, padding: '9px 12px', fontSize: 12, color: '#93c5fd', lineHeight: 1.5, display: 'flex', gap: 6 }}>
-              <Lightbulb size={13} style={{ flexShrink: 0, marginTop: 1 }} />
-              <span>{currentTurn.coaching_tip}</span>
-            </div>
+            <TipBox tip={currentTurn.coaching_tip} label="Coaching Tip" />
           )}
 
           {/* Attempts indicator */}
@@ -607,13 +555,16 @@ export default function ChainSession() {
           </div>
         </div>
       </div>
-      <GestureProcessingModal
-        open={showProcessingModal}
-        phase={processingPhase}
-        message={processingMessage}
-        onClose={() => setShowProcessingModal(false)}
-      />
-      <style>{`@keyframes rec-blink { 0%,100%{opacity:1} 50%{opacity:0.25} }`}</style>
+      </div>
+      <GestureProcessingModal open={showProcessingModal} phase={processingPhase} message={processingMessage} onClose={() => setShowProcessingModal(false)} />
+      <style>{`
+        @keyframes cs-blink { 0%,100%{opacity:1} 50%{opacity:0.25} }
+        @keyframes cs-enter { 0%{opacity:0;transform:scale(0.94) translateY(16px)} 100%{opacity:1;transform:scale(1) translateY(0)} }
+        @media (max-width: 768px) {
+          .cs-body { flex-direction: column !important; }
+          .cs-panel { width: 100% !important; max-height: 50vh; }
+        }
+      `}</style>
     </div>
   );
 }

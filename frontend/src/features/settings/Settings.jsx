@@ -4,7 +4,8 @@ import {
   ArrowLeft, User, Star, Trophy, Zap, RotateCcw, LogOut,
   BookOpen, Shield, TrendingUp, Award, Info, ChevronRight,
 } from 'lucide-react';
-import { getStoredStudyProgress, getVoyageStats, loadStudyProgress, resetStudyProgress } from '../study/studyVoyage';
+import { getStoredStudyProgress, getVoyageStats, loadStudyProgress, resetStudyProgress, unlockAllProgress } from '../study/studyVoyage';
+import { isTutorialSkipped, clearTutorialSkip, markTutorialSkipped } from '../../components/TutorialModal';
 import { useIslands } from '../../contexts/IslandsContext';
 
 const ISLAND_COLORS = {
@@ -65,6 +66,16 @@ export default function Settings({ user, onLogout }) {
   const [profile, setProfile] = useState({});
   const [progress, setProgress] = useState(null);
   const [confirmReset, setConfirmReset] = useState(false);
+  const [tutorialEnabled, setTutorialEnabled] = useState(() => !isTutorialSkipped());
+
+  const handleTutorialToggle = () => {
+    if (tutorialEnabled) {
+      markTutorialSkipped();
+    } else {
+      clearTutorialSkip();
+    }
+    setTutorialEnabled((v) => !v);
+  };
 
   useEffect(() => {
     setProfile(user || JSON.parse(localStorage.getItem('handspeak_user') || '{}'));
@@ -80,7 +91,17 @@ export default function Settings({ user, onLogout }) {
     };
   }, [user]);
 
-  const stats = progress ? getVoyageStats(progress) : { xp: 0, playerLevel: 1, completedIslands: 0, totalIslands: 5, completedPhraseLevels: 0, totalPhraseLevels: 25 };
+  const datasetWordTotal = islands.reduce((sum, island) => sum + (island.levels?.length || 0), 0);
+  const stats = progress
+    ? getVoyageStats(progress)
+    : {
+        xp: 0,
+        playerLevel: 1,
+        completedIslands: 0,
+        totalIslands: islands.length || 5,
+        completedPhraseLevels: 0,
+        totalPhraseLevels: datasetWordTotal,
+      };
 
   const handleLogout = () => {
     localStorage.removeItem('handspeak_user');
@@ -212,7 +233,7 @@ export default function Settings({ user, onLogout }) {
                   { label: 'Player Level',     value: `Lv. ${stats.playerLevel}`,                             accent: '#22d3ee' },
                   { label: 'Total XP',         value: `${stats.xp} pts`,                                       accent: '#fbbf24' },
                   { label: 'Islands Cleared',  value: `${stats.completedIslands} / ${stats.totalIslands}`,     accent: '#34d399' },
-                  { label: 'Phrases Learned',  value: `${stats.completedPhraseLevels} / ${stats.totalPhraseLevels}`, accent: '#a78bfa' },
+                  { label: 'Words Learned',  value: `${stats.completedPhraseLevels} / ${stats.totalPhraseLevels}`, accent: '#a78bfa' },
                 ].map(({ label, value, accent }) => (
                   <div key={label} style={{ padding: '18px 20px', background: 'rgba(0,0,0,0.15)' }}>
                     <p style={{ margin: '0 0 4px', fontSize: 10, fontWeight: 900, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>{label}</p>
@@ -228,7 +249,7 @@ export default function Settings({ user, onLogout }) {
               <div style={{ padding: '10px 16px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {islands.map((island) => {
                   const ip = progress?.islands?.[island.id];
-                  const done = ip?.completedLevelIds?.length == island.levels.length;
+                  const done = island.levels.length > 0 && ip?.completedLevelIds?.length >= island.levels.length;
                   const pct = ip ? Math.round((ip.completedLevelIds.length / Math.max(island.levels.length, 1)) * 100) : 0;
                   const color = ISLAND_COLORS[island.id] || '#60a5fa';
                   return (
@@ -261,6 +282,65 @@ export default function Settings({ user, onLogout }) {
             <Card>
               <CardHeader icon={<Shield size={16} color="#fb923c" />} label="Actions" />
               <div style={{ padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+
+                {/* Tutorial toggle */}
+                <div style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  padding: '16px 18px', borderRadius: 16,
+                  border: '1.5px solid rgba(103,232,249,0.25)',
+                  background: 'rgba(103,232,249,0.07)',
+                }}>
+                  <div>
+                    <p style={{ margin: 0, fontSize: 14, fontWeight: 800, color: 'white' }}>Level Tutorial Videos</p>
+                    <p style={{ margin: '2px 0 0', fontSize: 12, color: 'rgba(255,255,255,0.5)', fontWeight: 700 }}>
+                      {tutorialEnabled ? 'Shown before each level' : 'Turned off'}
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleTutorialToggle}
+                    style={{
+                      position: 'relative', width: 44, height: 24, borderRadius: 99,
+                      background: tutorialEnabled ? '#34d399' : 'rgba(255,255,255,0.12)',
+                      border: `1.5px solid ${tutorialEnabled ? '#6ee7b7' : 'rgba(255,255,255,0.15)'}`,
+                      cursor: 'pointer', flexShrink: 0,
+                      transition: 'background 0.25s, border-color 0.25s', padding: 0,
+                    }}
+                  >
+                    <div style={{
+                      position: 'absolute', top: 2,
+                      left: tutorialEnabled ? 22 : 2,
+                      width: 16, height: 16, borderRadius: '50%',
+                      background: 'white',
+                      boxShadow: '0 1px 4px rgba(0,0,0,0.4)',
+                      transition: 'left 0.25s cubic-bezier(0.34,1.56,0.64,1)',
+                    }} />
+                  </button>
+                </div>
+
+                {/* Unlock All Levels */}
+                <button
+                  onClick={() => { const unlocked = unlockAllProgress(); setProgress(unlocked); }}
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    padding: '16px 18px', borderRadius: 16,
+                    border: '1.5px solid rgba(52,211,153,0.45)',
+                    background: 'rgba(52,211,153,0.1)',
+                    cursor: 'pointer', color: '#34d399',
+                    fontFamily: "'Nunito',sans-serif", transition: 'all 0.2s',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(52,211,153,0.22)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(52,211,153,0.1)'; }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <Zap size={18} color="#34d399" />
+                    <div style={{ textAlign: 'left' }}>
+                      <p style={{ margin: 0, fontSize: 14, fontWeight: 800 }}>Unlock All Levels</p>
+                      <p style={{ margin: 0, fontSize: 12, color: 'rgba(52,211,153,0.7)', fontWeight: 700 }}>Marks all islands &amp; levels as completed</p>
+                    </div>
+                  </div>
+                  <ChevronRight size={16} color="rgba(52,211,153,0.6)" />
+                </button>
+
                 <button
                   onClick={handleResetProgress}
                   style={{
@@ -278,7 +358,7 @@ export default function Settings({ user, onLogout }) {
                     <RotateCcw size={18} color="#fb923c" />
                     <div style={{ textAlign: 'left' }}>
                       <p style={{ margin: 0, fontSize: 14, fontWeight: 800 }}>{confirmReset ? 'Tap again to confirm reset' : 'Reset Progress'}</p>
-                      <p style={{ margin: 0, fontSize: 12, color: 'rgba(251,146,60,0.7)', fontWeight: 700 }}>Clears all XP, islands &amp; phrase data</p>
+                      <p style={{ margin: 0, fontSize: 12, color: 'rgba(251,146,60,0.7)', fontWeight: 700 }}>Clears all XP, islands &amp; word data</p>
                     </div>
                   </div>
                   <ChevronRight size={16} color="rgba(251,146,60,0.6)" />
@@ -324,7 +404,7 @@ export default function Settings({ user, onLogout }) {
                 </div>
                 <div style={{ height: 1, background: 'rgba(255,255,255,0.08)' }} />
                 <p style={{ margin: 0, fontSize: 14, color: 'rgba(255,255,255,0.75)', lineHeight: 1.65 }}>
-                  A gamified, ocean-themed app for learning American Sign Language. Explore islands, master phrases, and embark on your Study Voyage!
+                  A gamified, ocean-themed app for learning American Sign Language. Explore islands, master words, and embark on your Study Voyage!
                 </p>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   {['Word Chapters', '100 Words', 'Model Verification', 'Real-time Camera'].map(t => (
