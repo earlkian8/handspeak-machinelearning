@@ -20,7 +20,7 @@ from logging_config import get_logger
 
 MODEL_DIR = Path(__file__).resolve().parents[2] / "model"
 DYNAMIC_DIR = MODEL_DIR / "dynamic"
-CHECKPOINT_PATH = DYNAMIC_DIR / "my_model.pt"
+CHECKPOINT_PATH = DYNAMIC_DIR / "my_model_lstm.pt"
 HOLISTIC_TASK_PATH = DYNAMIC_DIR / "holistic_landmarker.task"
 HOLISTIC_TASK_URL = (
     "https://storage.googleapis.com/mediapipe-models/holistic_landmarker/"
@@ -46,6 +46,23 @@ RH_END = LH_END + HAND_DIM
 EPS = 1e-6
 WRIST_IDX = 0
 MIDDLE_MCP_IDX = 9
+
+# Curated face landmarks used by the LSTM model (matching training config FACE_MODE='key')
+_FACE_KEY_LANDMARKS = [
+    61, 291, 13, 14, 17, 0, 78, 308, 95, 324, 88, 318,
+    87, 317, 82, 312, 81, 311, 80, 310,
+    33, 133, 159, 145,
+    362, 263, 386, 374,
+    70, 105, 107, 336, 334, 300,
+    1, 4, 168,
+    152, 175,
+]
+_face_xyz = np.array([[3 * i, 3 * i + 1, 3 * i + 2] for i in _FACE_KEY_LANDMARKS]).ravel()
+ACTIVE_INDICES = np.concatenate([
+    _face_xyz,
+    np.arange(FACE_DIM, POSE_END),
+    np.arange(POSE_END, RH_END),
+]).astype(np.int64)
 
 logger = get_logger("handspeak.services.dynamic")
 
@@ -115,6 +132,53 @@ class ASLFeatureExtractor(nn.Module):
         return self.classifier(emb)
 
 
+class ASLLSTMModel(nn.Module):
+    """Bidirectional LSTM with mean+max+last pooling — matches my_model_lstm.pt."""
+
+    def __init__(self, feat_dim: int, num_classes: int,
+                 hidden_dim: int = 256, num_layers: int = 3,
+                 dropout: float = 0.2, embedding_dim: int = 256):
+        super().__init__()
+        self.input_proj = nn.Sequential(
+            nn.Linear(feat_dim, hidden_dim),
+            nn.LayerNorm(hidden_dim),
+            nn.GELU(),
+            nn.Dropout(dropout),
+        )
+        self.lstm = nn.LSTM(
+            input_size=hidden_dim,
+            hidden_size=hidden_dim,
+            num_layers=num_layers,
+            batch_first=True,
+            dropout=dropout if num_layers > 1 else 0.0,
+            bidirectional=True,
+        )
+        pool_dim = hidden_dim * 2 * 3
+        self.embedding_head = nn.Sequential(
+            nn.Linear(pool_dim, embedding_dim),
+            nn.GELU(),
+            nn.Dropout(dropout),
+            nn.LayerNorm(embedding_dim),
+        )
+        self.classifier = nn.Linear(embedding_dim, num_classes)
+
+    def encode(self, x: torch.Tensor) -> torch.Tensor:
+        x = self.input_proj(x)
+        out, _ = self.lstm(x)
+        mean_p = out.mean(dim=1)
+        max_p = out.max(dim=1).values
+        last_p = out[:, -1, :]
+        pooled = torch.cat([mean_p, max_p, last_p], dim=-1)
+        emb = self.embedding_head(pooled)
+        return F.normalize(emb, dim=-1)
+
+    def forward(self, x: torch.Tensor, return_embedding: bool = False) -> torch.Tensor:
+        emb = self.encode(x)
+        if return_embedding:
+            return emb
+        return self.classifier(emb)
+
+
 class GestureRecognitionService:
     def __init__(self) -> None:
         self.device = torch.device("cpu")
@@ -156,20 +220,34 @@ class GestureRecognitionService:
         self.action_to_idx = {word: idx for idx, word in enumerate(self.actions)}
         self.action_lookup = {word.lower(): word for word in self.actions}
 
-        self.model = ASLFeatureExtractor(
-            input_dim=int(checkpoint.get("feat_dim", FEATURE_DIM)),
-            num_classes=len(self.actions),
-            d_model=int(checkpoint.get("d_model", 96)),
-            n_heads=int(checkpoint.get("n_heads", 4)),
-            n_layers=int(checkpoint.get("n_layers", 3)),
-            d_ff=int(checkpoint.get("d_ff", 192)),
-            dropout=float(checkpoint.get("dropout", 0.1)),
-            embedding_dim=int(checkpoint.get("embedding_dim", 96)),
-        ).to(self.device)
+        arch = checkpoint.get("arch", "transformer")
+        feat_dim = int(checkpoint.get("feat_dim", FEATURE_DIM))
+        if arch == "lstm":
+            self.model = ASLLSTMModel(
+                feat_dim=feat_dim,
+                num_classes=len(self.actions),
+                hidden_dim=int(checkpoint.get("hidden_dim", 256)),
+                num_layers=int(checkpoint.get("num_layers", 3)),
+                dropout=float(checkpoint.get("dropout", 0.2)),
+                embedding_dim=int(checkpoint.get("embedding_dim", 256)),
+            ).to(self.device)
+            self.active_indices = ACTIVE_INDICES
+        else:
+            self.model = ASLFeatureExtractor(
+                input_dim=feat_dim,
+                num_classes=len(self.actions),
+                d_model=int(checkpoint.get("d_model", 96)),
+                n_heads=int(checkpoint.get("n_heads", 4)),
+                n_layers=int(checkpoint.get("n_layers", 3)),
+                d_ff=int(checkpoint.get("d_ff", 192)),
+                dropout=float(checkpoint.get("dropout", 0.1)),
+                embedding_dim=int(checkpoint.get("embedding_dim", 96)),
+            ).to(self.device)
+            self.active_indices = None
 
         self.model.load_state_dict(checkpoint["model_state"], strict=True)
         self.model.eval()
-        logger.info("dynamic_checkpoint_loaded classes=%s", len(self.actions))
+        logger.info("dynamic_checkpoint_loaded arch=%s classes=%s", arch, len(self.actions))
 
     @staticmethod
     def _decode_image(image_data: str) -> np.ndarray:
@@ -241,6 +319,8 @@ class GestureRecognitionService:
             sampled_frames = [frames[int(idx)] for idx in sample_idx]
 
         sequence = np.stack([self._extract_features(frame) for frame in sampled_frames], axis=0)
+        if self.active_indices is not None:
+            sequence = sequence[:, self.active_indices]
         return torch.from_numpy(sequence).float().unsqueeze(0).to(self.device)
 
     def _resolve_target(self, target_word: str) -> str:
