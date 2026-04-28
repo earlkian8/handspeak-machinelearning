@@ -2,10 +2,12 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Circle, CheckCircle2, AlertCircle, ArrowRight, MessageCircle, Trophy, RefreshCw, Zap,
+  Eye, Hand, CheckCircle,
 } from 'lucide-react';
 import Camera from '../../components/Camera';
 import GestureProcessingModal from '../../components/GestureProcessingModal';
 import TipBox from '../../components/TipBox';
+import FeatureIntroModal, { isIntroSeen } from '../../components/FeatureIntroModal';
 import { startConversationSession, submitConversationAttempt } from '../islands/conversationApi';
 
 const CAPTURE_INTERVAL_MS = 250;
@@ -40,6 +42,7 @@ export default function Converse() {
   const [latestResult, setLatestResult] = useState(null);
   const [correctPromptIds, setCorrectPromptIds] = useState(() => new Set());
   const [sessionSummary, setSessionSummary] = useState(null);
+  const [showIntro, setShowIntro] = useState(() => !isIntroSeen('converse'));
 
   const webcamRef = useRef(null);
   const frameBufferRef = useRef([]);
@@ -230,6 +233,12 @@ export default function Converse() {
     setCountdown(0);
   }, [currentPrompt?.id, resetFrameBuffer]);
 
+  const CONVERSE_STEPS = [
+    { Icon: Eye,          label: 'Read',   text: 'An NPC sends you a message — read what it says.' },
+    { Icon: Hand,         label: 'Sign',   text: 'Sign the word shown as your reply in front of the camera.' },
+    { Icon: CheckCircle,  label: 'Submit', text: 'Hit Submit — get instant feedback and move to the next prompt.' },
+  ];
+
   if (bootstrapError) {
     return (
       <div style={{ minHeight: '100vh', background: '#020a1c', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Nunito',sans-serif", padding: 24 }}>
@@ -262,6 +271,17 @@ export default function Converse() {
 
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#020a1c', fontFamily: "'Nunito', sans-serif" }}>
+      {showIntro && (
+        <FeatureIntroModal
+          featureKey="converse"
+          title="Converse"
+          subtitle="Have a real signing conversation with an NPC"
+          Icon={MessageCircle}
+          accentColor="#6ee7b7"
+          steps={CONVERSE_STEPS}
+          onDismiss={() => setShowIntro(false)}
+        />
+      )}
       <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', width: '100%', maxWidth: 1140, maxHeight: '100vh', borderRadius: 0, overflow: 'hidden', background: 'linear-gradient(165deg, #0c1f3d 0%, #081428 100%)' }}>
 
         {/* Top bar */}

@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import YouTubeTutorial from '../../components/YouTubeTutorial';
 import { useParams, useNavigate } from 'react-router-dom';
-import { X, Circle, ArrowRight, CheckCircle, Lock, Waves, Zap, BookOpen } from 'lucide-react';
+import { X, Circle, ArrowRight, CheckCircle, Lock, Waves, Zap, BookOpen, PlayCircle, Hand, Trophy } from 'lucide-react';
 import TipBox from '../../components/TipBox';
 import Camera from '../../components/Camera';
 import GestureProcessingModal from '../../components/GestureProcessingModal';
+import FeatureIntroModal, { isIntroSeen } from '../../components/FeatureIntroModal';
 import { postJson } from '../../lib/api';
 import {
   getInitialStudyProgress,
@@ -50,6 +51,7 @@ export default function StudySession() {
     try { return parseInt(sessionStorage.getItem('ss_level_streak') || '0', 10); } catch { return 0; }
   });
   const levelStreakRef = useRef(levelStreak);
+  const [showIntro, setShowIntro] = useState(() => !isIntroSeen('level'));
   const webcamRef = useRef(null);
   const frameBufferRef = useRef([]);
   const isSubmittingRef = useRef(false);
@@ -362,6 +364,22 @@ export default function StudySession() {
       background: 'rgba(2,10,28,0.88)', backdropFilter: 'blur(8px)',
       padding: 20, fontFamily: "'Nunito', sans-serif",
     }}>
+
+      {showIntro && (
+        <FeatureIntroModal
+          featureKey="level"
+          title="Level"
+          subtitle="Structured sign challenges to build fluency"
+          Icon={BookOpen}
+          accentColor="#fbbf24"
+          steps={[
+            { Icon: PlayCircle, label: 'Watch',   text: 'A tutorial shows you how to perform the sign before you start.' },
+            { Icon: Hand,       label: 'Sign',    text: 'Perform the sign in front of the camera and submit your attempt.' },
+            { Icon: Trophy,     label: 'Streak',  text: 'Hit the required streak to complete the level and earn XP.' },
+          ]}
+          onDismiss={() => setShowIntro(false)}
+        />
+      )}
 
       {/* success overlay */}
       {showSuccess && (

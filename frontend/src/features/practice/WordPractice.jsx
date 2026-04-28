@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Hand, RefreshCw, Search, X } from 'lucide-react';
+import { ArrowLeft, Hand, RefreshCw, Search, X, MousePointerClick, Camera, Zap } from 'lucide-react';
 import { fetchJson } from '../../lib/api';
 import { normalizeWordEntry } from '../../lib/vocabulary';
+import FeatureIntroModal, { isIntroSeen } from '../../components/FeatureIntroModal';
 
 const ASL_IMG_BASE = 'https://www.lifeprint.com/asl101/fingerspelling/abc-gifs';
 const ALPHABET_LETTERS = 'ABCDEFGHIKLMNOPQRSTUVWXY'.split('');
@@ -166,6 +167,13 @@ export default function WordPractice() {
   }, [words, query]);
 
   const accentColor = '#6ee7b7';
+  const [showIntro, setShowIntro] = useState(() => !isIntroSeen('drill'));
+
+  const DRILL_STEPS = [
+    { Icon: MousePointerClick, label: 'Pick',    text: 'Choose any word from the list or select a letter from the alphabet.' },
+    { Icon: Camera,            label: 'Sign',    text: 'Face the camera and perform the ASL sign when ready.' },
+    { Icon: Zap,               label: 'Repeat',  text: 'Get instant feedback and drill as many signs as you like.' },
+  ];
 
   return (
     <div style={{
@@ -174,6 +182,18 @@ export default function WordPractice() {
       background: 'radial-gradient(ellipse at 18% 0%,#fb923c 0%,#ea580c 20%,#9a3412 50%,#431407 100%)',
       position: 'relative', overflow: 'hidden',
     }}>
+
+      {showIntro && (
+        <FeatureIntroModal
+          featureKey="drill"
+          title="Drill"
+          subtitle="Free-form practice — words & alphabet"
+          Icon={Hand}
+          accentColor="#fb923c"
+          steps={DRILL_STEPS}
+          onDismiss={() => setShowIntro(false)}
+        />
+      )}
 
       {/* ── Header ── */}
       <header style={{
