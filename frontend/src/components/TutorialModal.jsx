@@ -1,6 +1,18 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { ChevronRight, RotateCcw, X } from 'lucide-react';
-import { fetchJson } from '../lib/api';
+
+const BLOB_BASE = import.meta.env.VITE_BLOB_BASE_URL || 'https://2hku3a621tdz3iiv.public.blob.vercel-storage.com/videos';
+
+const FILENAME_OVERRIDES = {
+  hesheit: 'heshiet',
+  refrigerator: 'refrigirator',
+};
+
+function getVideoUrl(word) {
+  const key = word.toLowerCase();
+  const filename = FILENAME_OVERRIDES[key] ?? key;
+  return `${BLOB_BASE}/${filename}.mp4`;
+}
 
 const SKIP_KEY = 'handspeak_level_tutorial_skip';
 
@@ -16,29 +28,23 @@ export function markTutorialSkipped() {
   try { localStorage.setItem(SKIP_KEY, 'true'); } catch {}
 }
 
-export default function TutorialModal({ word, isLetter = false, onProceed, onSkip }) {
-  const [videoId, setVideoId] = useState(null);
-  const [loadingVideo, setLoadingVideo] = useState(true);
-  const [iframeKey, setIframeKey] = useState(0);
+export default function TutorialModal({ word, onProceed, onSkip }) {
+  const [videoError, setVideoError] = useState(false);
+  const videoRef = useRef(null);
 
-  useEffect(() => {
-    if (!word) { setLoadingVideo(false); return; }
-    let active = true;
-    setVideoId(null);
-    setLoadingVideo(true);
-    fetchJson(`/api/youtube/video?word=${encodeURIComponent(word)}&is_letter=${isLetter}`)
-      .then((d) => { if (active) setVideoId(d.video_id || null); })
-      .catch(() => { if (active) setVideoId(null); })
-      .finally(() => { if (active) setLoadingVideo(false); });
-    return () => { active = false; };
-  }, [word, isLetter]);
-
-  const handleReplay = useCallback(() => setIframeKey((k) => k + 1), []);
+  const handleReplay = useCallback(() => {
+    if (videoRef.current) {
+      videoRef.current.currentTime = 0;
+      videoRef.current.play();
+    }
+  }, []);
 
   const handleDontAskAgain = useCallback(() => {
     markTutorialSkipped();
     onProceed();
   }, [onProceed]);
+
+  const url = word ? getVideoUrl(word) : null;
 
   return (
     <div style={{
@@ -75,20 +81,18 @@ export default function TutorialModal({ word, isLetter = false, onProceed, onSki
         {/* ── Video ── */}
         <div style={{ padding: '16px 20px 0' }}>
           <div style={{ borderRadius: 14, overflow: 'hidden', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.1)', height: 252, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            {loadingVideo && (
-              <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12, fontWeight: 700 }}>Loading tutorial…</div>
-            )}
-            {!loadingVideo && videoId && (
-              <iframe
-                key={`${videoId}-${iframeKey}`}
-                src={`https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1&autoplay=1`}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-                title={`ASL tutorial for ${word}`}
-                style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
+            {url && !videoError ? (
+              <video
+                ref={videoRef}
+                key={url}
+                src={url}
+                autoPlay
+                loop
+                controls
+                style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
+                onError={() => setVideoError(true)}
               />
-            )}
-            {!loadingVideo && !videoId && (
+            ) : (
               <div style={{ textAlign: 'center', padding: 20 }}>
                 <div style={{ fontSize: 52, fontWeight: 900, color: '#0ea5e9', lineHeight: 1 }}>{word}</div>
                 <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 700, marginTop: 8 }}>ASL Sign — no video available</div>

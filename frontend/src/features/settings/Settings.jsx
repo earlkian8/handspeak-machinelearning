@@ -5,6 +5,7 @@ import {
   BookOpen, Shield, TrendingUp, Award, Info, ChevronRight,
 } from 'lucide-react';
 import { getStoredStudyProgress, getVoyageStats, loadStudyProgress, resetStudyProgress, unlockAllProgress } from '../study/studyVoyage';
+import { isTutorialSkipped, clearTutorialSkip, markTutorialSkipped } from '../../components/TutorialModal';
 import { useIslands } from '../../contexts/IslandsContext';
 
 const ISLAND_COLORS = {
@@ -65,6 +66,16 @@ export default function Settings({ user, onLogout }) {
   const [profile, setProfile] = useState({});
   const [progress, setProgress] = useState(null);
   const [confirmReset, setConfirmReset] = useState(false);
+  const [tutorialEnabled, setTutorialEnabled] = useState(() => !isTutorialSkipped());
+
+  const handleTutorialToggle = () => {
+    if (tutorialEnabled) {
+      markTutorialSkipped();
+    } else {
+      clearTutorialSkip();
+    }
+    setTutorialEnabled((v) => !v);
+  };
 
   useEffect(() => {
     setProfile(user || JSON.parse(localStorage.getItem('handspeak_user') || '{}'));
@@ -271,6 +282,41 @@ export default function Settings({ user, onLogout }) {
             <Card>
               <CardHeader icon={<Shield size={16} color="#fb923c" />} label="Actions" />
               <div style={{ padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+
+                {/* Tutorial toggle */}
+                <div style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  padding: '16px 18px', borderRadius: 16,
+                  border: '1.5px solid rgba(103,232,249,0.25)',
+                  background: 'rgba(103,232,249,0.07)',
+                }}>
+                  <div>
+                    <p style={{ margin: 0, fontSize: 14, fontWeight: 800, color: 'white' }}>Level Tutorial Videos</p>
+                    <p style={{ margin: '2px 0 0', fontSize: 12, color: 'rgba(255,255,255,0.5)', fontWeight: 700 }}>
+                      {tutorialEnabled ? 'Shown before each level' : 'Turned off'}
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleTutorialToggle}
+                    style={{
+                      position: 'relative', width: 44, height: 24, borderRadius: 99,
+                      background: tutorialEnabled ? '#34d399' : 'rgba(255,255,255,0.12)',
+                      border: `1.5px solid ${tutorialEnabled ? '#6ee7b7' : 'rgba(255,255,255,0.15)'}`,
+                      cursor: 'pointer', flexShrink: 0,
+                      transition: 'background 0.25s, border-color 0.25s', padding: 0,
+                    }}
+                  >
+                    <div style={{
+                      position: 'absolute', top: 2,
+                      left: tutorialEnabled ? 22 : 2,
+                      width: 16, height: 16, borderRadius: '50%',
+                      background: 'white',
+                      boxShadow: '0 1px 4px rgba(0,0,0,0.4)',
+                      transition: 'left 0.25s cubic-bezier(0.34,1.56,0.64,1)',
+                    }} />
+                  </button>
+                </div>
+
                 {/* Unlock All Levels */}
                 <button
                   onClick={() => { const unlocked = unlockAllProgress(); setProgress(unlocked); }}

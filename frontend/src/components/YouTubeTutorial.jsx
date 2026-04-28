@@ -1,29 +1,25 @@
-import React, { useEffect, useState } from 'react';
-import { fetchJson } from '../lib/api';
+import React, { useState } from 'react';
 
-export default function YouTubeTutorial({ word, isLetter = false }) {
-  const [videoId, setVideoId] = useState(null);
-  const [loading, setLoading] = useState(false);
+const BLOB_BASE = import.meta.env.VITE_BLOB_BASE_URL || 'https://2hku3a621tdz3iiv.public.blob.vercel-storage.com/videos';
 
-  useEffect(() => {
-    if (!word) return;
-    let active = true;
-    setVideoId(null);
-    setLoading(true);
+// Filename differs from word key for these entries
+const FILENAME_OVERRIDES = {
+  hesheit: 'heshiet',
+  refrigerator: 'refrigirator',
+};
 
-    fetchJson(`/api/youtube/video?word=${encodeURIComponent(word)}&is_letter=${isLetter}`)
-      .then((data) => {
-        if (active) setVideoId(data.video_id || null);
-      })
-      .catch(() => {
-        if (active) setVideoId(null);
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
+function getVideoUrl(word) {
+  const key = word.toLowerCase();
+  const filename = FILENAME_OVERRIDES[key] ?? key;
+  return `${BLOB_BASE}/${filename}.mp4`;
+}
 
-    return () => { active = false; };
-  }, [word, isLetter]);
+export default function YouTubeTutorial({ word }) {
+  const [error, setError] = useState(false);
+
+  if (!word) return null;
+
+  const url = getVideoUrl(word);
 
   return (
     <div>
@@ -37,22 +33,16 @@ export default function YouTubeTutorial({ word, isLetter = false }) {
         height: 180, flexShrink: 0,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}>
-        {loading && (
-          <div style={{ color: 'rgba(255,255,255,0.35)', fontSize: 12, fontWeight: 700 }}>
-            Loading tutorial...
-          </div>
-        )}
-        {!loading && videoId && (
-          <iframe
-            key={videoId}
-            src={`https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1`}
-            allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
-            title={`ASL tutorial for ${word}`}
-            style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
+        {!error ? (
+          <video
+            key={url}
+            src={url}
+            controls
+            loop
+            style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
+            onError={() => setError(true)}
           />
-        )}
-        {!loading && !videoId && (
+        ) : (
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontSize: 36, fontWeight: 900, color: '#0ea5e9', lineHeight: 1 }}>{word}</div>
             <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 700, marginTop: 5 }}>ASL Sign</div>
