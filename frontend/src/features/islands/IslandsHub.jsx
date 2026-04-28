@@ -67,11 +67,11 @@ const OCEAN_ZONES = [
 ];
 
 const CHAPTER_ZONE_LAYOUT = [
-  { key: 'sunlit', chapterMin: 1, chapterMax: 3 },
-  { key: 'twilight', chapterMin: 4, chapterMax: 6 },
-  { key: 'midnight', chapterMin: 7, chapterMax: 9 },
-  { key: 'abyss', chapterMin: 10, chapterMax: 11 },
-  { key: 'trenches', chapterMin: 12, chapterMax: 13 },
+  { key: 'sunlit', chapterMin: 1, chapterMax: 2 },
+  { key: 'twilight', chapterMin: 3, chapterMax: 4 },
+  { key: 'midnight', chapterMin: 5, chapterMax: 6 },
+  { key: 'abyss', chapterMin: 7, chapterMax: 8 },
+  { key: 'trenches', chapterMin: 9, chapterMax: 999 },
 ];
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
