@@ -4,6 +4,66 @@ import { ArrowLeft, Hand, RefreshCw, Search, X } from 'lucide-react';
 import { fetchJson } from '../../lib/api';
 import { normalizeWordEntry } from '../../lib/vocabulary';
 
+const ASL_IMG_BASE = 'https://www.lifeprint.com/asl101/fingerspelling/abc-gifs';
+const ALPHABET_LETTERS = 'ABCDEFGHIKLMNOPQRSTUVWXY'.split('');
+
+function LetterCard({ letter, onClick, accent }) {
+  const [imgOk, setImgOk] = useState(true);
+  return (
+    <button
+      onClick={() => onClick(letter)}
+      style={{
+        width: 96,
+        borderRadius: 20,
+        border: '2px solid rgba(255,255,255,0.22)',
+        background: 'rgba(255,255,255,0.1)',
+        backdropFilter: 'blur(8px)',
+        cursor: 'pointer',
+        padding: '10px 8px 12px',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: 6,
+        boxShadow: '0 6px 20px rgba(0,0,0,0.22)',
+        transition: 'transform 0.18s cubic-bezier(.4,0,.2,1), box-shadow 0.18s ease, border-color 0.18s ease',
+        fontFamily: "'Nunito',sans-serif",
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.transform = 'translateY(-6px) scale(1.04)';
+        e.currentTarget.style.boxShadow = '0 16px 36px rgba(0,0,0,0.38)';
+        e.currentTarget.style.borderColor = accent;
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.transform = 'translateY(0) scale(1)';
+        e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.22)';
+        e.currentTarget.style.borderColor = 'rgba(255,255,255,0.22)';
+      }}
+    >
+      <div style={{
+        width: 64, height: 64,
+        borderRadius: 14, overflow: 'hidden',
+        background: 'rgba(255,255,255,0.92)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        flexShrink: 0,
+      }}>
+        {imgOk ? (
+          <img
+            src={`${ASL_IMG_BASE}/${letter.toLowerCase()}.gif`}
+            alt={`ASL ${letter}`}
+            style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+            onError={() => setImgOk(false)}
+          />
+        ) : (
+          <span style={{ fontSize: 28, fontWeight: 900, color: accent, lineHeight: 1 }}>{letter}</span>
+        )}
+      </div>
+      <span style={{ fontSize: 16, fontWeight: 900, color: 'white', textShadow: '0 1px 4px rgba(0,0,0,0.4)' }}>
+        {letter}
+      </span>
+    </button>
+  );
+}
+
 function WordCard({ word, onClick, accent, query }) {
   // Highlight matching part of label
   const label = word.label;
@@ -79,6 +139,7 @@ export default function WordPractice() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [query, setQuery] = useState('');
+  const [activeTab, setActiveTab] = useState('words');
   const searchRef = useRef(null);
 
   useEffect(() => {
@@ -140,15 +201,39 @@ export default function WordPractice() {
 
         <div>
           <h1 style={{ fontSize: 24, fontWeight: 900, color: 'white', margin: 0, textShadow: '0 2px 10px rgba(0,0,0,0.4)' }}>
-            Word Practice
+            {activeTab === 'words' ? 'Word Practice' : 'Alphabet Practice'}
           </h1>
           <p style={{ margin: '2px 0 0', fontSize: 12, color: 'rgba(255,255,255,0.65)', fontWeight: 700 }}>
-            Tap a word to open the camera challenge
+            {activeTab === 'words' ? 'Tap a word to open the camera challenge' : 'Tap a letter to open the camera challenge'}
           </p>
         </div>
 
-        {/* ── Search bar ── */}
-        <div style={{
+        {/* ── Tab switcher ── */}
+        <div style={{ display: 'flex', gap: 4, background: 'rgba(0,0,0,0.2)', borderRadius: 99, padding: 4, flexShrink: 0 }}>
+          {['words', 'alphabet'].map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              style={{
+                border: 'none',
+                borderRadius: 99,
+                padding: '6px 16px',
+                cursor: 'pointer',
+                fontWeight: 900,
+                fontSize: 12,
+                fontFamily: "'Nunito', sans-serif",
+                background: activeTab === tab ? 'white' : 'transparent',
+                color: activeTab === tab ? '#9a3412' : 'rgba(255,255,255,0.7)',
+                transition: 'all 0.2s',
+              }}
+            >
+              {tab.charAt(0).toUpperCase() + tab.slice(1)}
+            </button>
+          ))}
+        </div>
+
+        {/* ── Search bar (words only) ── */}
+        {activeTab === 'words' && <div style={{
           flex: 1, minWidth: 200, maxWidth: 380,
           marginLeft: 'auto',
           display: 'flex', alignItems: 'center', gap: 10,
@@ -195,7 +280,7 @@ export default function WordPractice() {
               <X size={11} color="white" />
             </button>
           )}
-        </div>
+        </div>}
 
         {/* Count badge */}
         <div style={{
@@ -205,14 +290,41 @@ export default function WordPractice() {
         }}>
           <Hand size={14} color="rgba(255,255,255,0.8)" />
           <span style={{ fontSize: 12, fontWeight: 900, color: 'rgba(255,255,255,0.9)' }}>
-            {query ? `${filteredWords.length} / ${words.length}` : `${words.length || '--'} words`}
+            {activeTab === 'alphabet'
+              ? `${ALPHABET_LETTERS.length} letters`
+              : query ? `${filteredWords.length} / ${words.length}` : `${words.length || '--'} words`}
           </span>
         </div>
       </header>
 
       {/* ── Content ── */}
       <main style={{ flex: 1, padding: '32px 36px 64px', position: 'relative', zIndex: 2 }}>
-        {loading ? (
+
+        {/* ── Alphabet tab ── */}
+        {activeTab === 'alphabet' && (
+          <section>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 24 }}>
+              <div style={{ height: 1, flex: 1, background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.25))' }} />
+              <h2 style={{ fontSize: 11, fontWeight: 900, color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: '0.24em', margin: 0, whiteSpace: 'nowrap' }}>
+                Alphabet · A – Z
+              </h2>
+              <div style={{ height: 1, flex: 1, background: 'linear-gradient(90deg, rgba(255,255,255,0.25), transparent)' }} />
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 14 }}>
+              {ALPHABET_LETTERS.map((letter) => (
+                <LetterCard
+                  key={letter}
+                  letter={letter}
+                  onClick={(l) => navigate(`/practice/alphabet/${l.toLowerCase()}`)}
+                  accent="#fb923c"
+                />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* ── Words tab ── */}
+        {activeTab === 'words' && (loading ? (
           <div style={{ minHeight: 260, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 900 }}>
             Loading vocabulary...
           </div>
@@ -277,7 +389,7 @@ export default function WordPractice() {
               </div>
             )}
           </section>
-        )}
+        ))}
       </main>
 
       <style>{`

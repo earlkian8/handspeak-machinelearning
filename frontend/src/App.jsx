@@ -10,6 +10,7 @@ import Welcome from './features/auth/Welcome';
 import Dashboard from './features/dashboard/Dashboard';
 import Practice from './features/practice/WordPractice';
 import PracticeSession from './features/practice/WordPracticeSession';
+import AlphabetPracticeSession from './features/practice/PracticeSession';
 import StudyIsland from './features/study/StudyIsland';
 import StudySession from './features/study/StudySession';
 import IslandsHub from './features/islands/IslandsHub';
@@ -86,6 +87,7 @@ function App() {
 
           {/* Drill mode (reuses existing WordPractice flow) */}
           <Route path="/practice" element={guard(<Practice />)} />
+          <Route path="/practice/:type/:signId" element={guard(<AlphabetPracticeSession />)} />
           <Route path="/practice/:wordId" element={guard(<PracticeSession />)} />
 
           {/* Settings */}
