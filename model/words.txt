@@ -4,67 +4,43 @@
 # Reordering within a chapter does NOT break saved progress (level IDs are word-based).
 
 ALL_SIGNS = [
-    # Chapter 1 – Everyday Basics (Easy → Hard: simple nouns first, abstract/compound last)
-    "apple", "bee", "bed", "bath", "bad", "arm", "all", "aunt",
-    "TV", "animal", "alligator", "balloon", "airplane", "any", "bedroom",
-    "another", "awake", "backyard", "after", "because",
+    # Chapter 1 - Everyday Basics (Easy -> Hard: simple nouns first, abstract/compound last)
+    "apple", "bee", "bed", "bath", "all", "aunt", "TV", "alligator", "balloon", "airplane", "another", "backyard", "because",
 
-    # Chapter 2 – Actions & Feelings (Easy → Hard: simple iconic signs first, temporal/compound last)
-    "bird", "black", "blue", "boat", "book", "boy", "bug", "bye",
-    "can", "car", "cat", "brown", "blow", "carrot", "cereal",
-    "callonphone", "better", "beside", "brother", "before",
+    # Chapter 2 - Actions & Feelings (Easy -> Hard: simple iconic signs first, temporal/compound last)
+    "bird", "black", "blue", "boat", "boy", "bug", "bye", "brown", "blow", "carrot", "cereal", "callonphone", "better", "brother",
 
-    # Chapter 3 – People & Places (Easy → Hard)
-    "dad", "dog", "cow", "cute", "cry", "chair", "child", "clean",
-    "close", "chin", "cheek", "doll", "cloud", "clown", "dance",
-    "closet", "cut", "dirty", "chocolate", "cowboy",
+    # Chapter 3 - People & Places (Easy -> Hard)
+    "dad", "cow", "cute", "cry", "cheek", "doll", "cloud", "clown", "closet", "cut", "chocolate", "cowboy",
 
-    # Chapter 4 – Nature & Animals (Easy → Hard)
-    "drink", "duck", "ear", "eye", "face", "feet", "down", "fast",
-    "drop", "fall", "elephant", "farm", "donkey", "dry", "find",
-    "empty", "fine", "dryer", "every", "drawer",
+    # Chapter 4 - Nature & Animals (Easy -> Hard)
+    "drink", "duck", "eye", "elephant", "farm", "donkey", "find", "dryer",
 
-    # Chapter 5 – Home & Objects (Easy → Hard)
-    "fish", "flower", "food", "girl", "go", "frog", "gift", "grandma",
-    "flag", "giraffe", "goose", "give", "finger", "garbage", "fireman",
-    "finish", "frenchfries", "first", "for", "glasswindow",
+    # Chapter 5 - Home & Objects (Easy -> Hard)
+    "flower", "food", "girl", "frog", "grandma", "giraffe", "garbage", "fireman", "finish", "frenchfries", "first", "for",
 
-    # Chapter 6 – Body & Senses (Easy → Hard)
-    "hello", "happy", "horse", "grandpa", "home", "hear", "hair", "green",
-    "hat", "head", "grass", "gum", "hen", "hide", "high",
-    "helicopter", "hate", "have", "hesheit", "haveto",
+    # Chapter 6 - Body & Senses (Easy -> Hard)
+    "horse", "grandpa", "home", "hair", "hat", "head", "grass", "gum", "hen", "high", "helicopter", "hesheit", "haveto",
 
-    # Chapter 7 – Playful Waters (Easy → Hard)
-    "hot", "hungry", "icecream", "jump", "kiss", "kitty", "lion", "look",
-    "mad", "jacket", "jeans", "lamp", "like", "lips", "listen",
-    "loud", "make", "into", "later", "if",
+    # Chapter 7 - Playful Waters (Easy -> Hard)
+    "hot", "hungry", "icecream", "kiss", "lion", "mad", "lamp", "listen", "make", "later", "if",
 
-    # Chapter 8 – Tidal Routines (Easy → Hard)
-    "no", "milk", "mom", "man", "moon", "mouse", "nap", "nose",
-    "night", "nuts", "many", "mouth", "old", "not", "noisy",
-    "napkin", "morning", "mitten", "now", "minemy",
+    # Chapter 8 - Tidal Routines (Easy -> Hard)
+    "no", "milk", "mom", "man", "moon", "mouse", "nose", "night", "nuts", "old", "noisy", "napkin", "morning", "now",
 
-    # Chapter 9 – Reef Community (Easy → Hard)
-    "orange", "pig", "pizza", "please", "puppy", "pen", "on", "open",
-    "owl", "pencil", "penny", "person", "police", "pool", "potty",
-    "pretty", "pajamas", "outside", "pretend", "owie",
+    # Chapter 9 - Reef Community (Easy -> Hard)
+    "orange", "pig", "pizza", "owl", "police", "potty", "pajamas", "outside", "pretend",
 
-    # Chapter 10 – Deep Comfort (Easy → Hard)
-    "rain", "red", "sad", "see", "shirt", "shoe", "sleep", "quiet",
-    "read", "ride", "room", "say", "scissors", "shower", "sick",
-    "same", "shhh", "radio", "refrigerator", "puzzle",
+    # Chapter 10 - Deep Comfort (Easy -> Hard)
+    "rain", "sad", "see", "shirt", "shoe", "shower", "sick", "shhh", "radio", "refrigerator",
 
-    # Chapter 11 – Pressure Expressions (Easy → Hard)
-    "sleepy", "smile", "snow", "sun", "thankyou", "tiger", "thirsty", "table",
-    "snack", "stairs", "stay", "store", "stuck", "talk", "taste",
-    "story", "sticky", "that", "there", "think",
+    # Chapter 11 - Pressure Expressions (Easy -> Hard)
+    "smile", "snow", "sun", "tiger", "thirsty", "table", "snack", "stairs", "store", "stuck", "talk", "taste",
 
-    # Chapter 12 – Abyss Discoveries (Easy → Hard)
-    "tooth", "toy", "tree", "water", "white", "up", "tongue", "touch",
-    "time", "uncle", "underwear", "wait", "wake", "wet", "tomorrow",
-    "toothbrush", "vacuum", "weus", "where", "who",
+    # Chapter 12 - Abyss Discoveries (Easy -> Hard)
+    "tree", "water", "white", "up", "time", "uncle", "underwear", "wet", "tomorrow", "toothbrush", "weus", "where", "who",
 
-    # Chapter 13 – Trench Mastery (Easy → Hard, 10 signs)
-    "yellow", "yes", "zebra", "zipper", "wolf", "yucky", "will", "yesterday",
-    "yourself", "why",
+    # Chapter 13 - Trench Mastery (Easy -> Hard, 10 signs)
+    "yellow", "yes", "zebra", "wolf", "yesterday", "yourself",
+
 ]

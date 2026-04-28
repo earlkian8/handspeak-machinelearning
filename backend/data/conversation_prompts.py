@@ -16,18 +16,6 @@ GREETINGS_ISLAND_ID = "greetings"
 
 GREETINGS_PROMPTS: list[dict[str, Any]] = [
     {
-        "id": "greet-1",
-        "island_id": GREETINGS_ISLAND_ID,
-        "order": 1,
-        "situation": "first_meeting",
-        "prompt_text": "An NPC waves and signs HELLO to you. Reply with a greeting.",
-        "expected_word": "hello",
-        "acceptable_words": ["hello"],
-        "intent_tag": "greet-open",
-        "response_type": "greet-open",
-        "coaching_tip": "Open palm near the forehead, then move outward like a salute.",
-    },
-    {
         "id": "greet-2",
         "island_id": GREETINGS_ISLAND_ID,
         "order": 2,
@@ -40,16 +28,6 @@ GREETINGS_PROMPTS: list[dict[str, Any]] = [
         "coaching_tip": "Non-dominant arm horizontal, dominant arm rises like a sunrise.",
     },
     {
-        "id": "greet-3",
-        "island_id": GREETINGS_ISLAND_ID,
-        "order": 3,        "situation": "commute",        "prompt_text": "Someone asks HOW ARE YOU? You feel great today — reply.",
-        "expected_word": "fine",
-        "acceptable_words": ["fine", "happy"],
-        "intent_tag": "confirm",
-        "response_type": "confirm",
-        "coaching_tip": "Open hand, thumb to chest, move outward.",
-    },
-    {
         "id": "greet-4",
         "island_id": GREETINGS_ISLAND_ID,
         "order": 4,        "situation": "school",        "prompt_text": "They ask HOW ARE YOU? You feel down — reply honestly.",
@@ -58,18 +36,6 @@ GREETINGS_PROMPTS: list[dict[str, Any]] = [
         "intent_tag": "react",
         "response_type": "react",
         "coaching_tip": "Both hands, palms toward face, drift downward with a soft expression.",
-    },
-    {
-        "id": "greet-5",
-        "island_id": GREETINGS_ISLAND_ID,
-        "order": 5,
-        "situation": "store",
-        "prompt_text": "A friend just gave you a gift. How do you respond politely?",
-        "expected_word": "thankyou",
-        "acceptable_words": ["thankyou"],
-        "intent_tag": "gratitude",
-        "response_type": "gratitude",
-        "coaching_tip": "Fingertips touch chin, then move forward toward the person.",
     },
     {
         "id": "greet-6",
@@ -109,30 +75,6 @@ GREETINGS_PROMPTS: list[dict[str, Any]] = [
 
 REPAIR_PROMPTS: list[dict[str, Any]] = [
     {
-        "id": "repair-1",
-        "island_id": "repair",
-        "order": 1,
-        "situation": "misunderstanding",
-        "prompt_text": "The NPC signs too fast and you didn't catch it. Signal them to WAIT.",
-        "expected_word": "wait",
-        "acceptable_words": ["wait"],
-        "intent_tag": "repair",
-        "response_type": "repair",
-        "coaching_tip": "Open hand raised like a stop sign, then lower slightly.",
-    },
-    {
-        "id": "repair-2",
-        "island_id": "repair",
-        "order": 2,
-        "situation": "confusion",
-        "prompt_text": "The NPC asks something but you didn't understand. Ask them to SAY it again.",
-        "expected_word": "say",
-        "acceptable_words": ["say"],
-        "intent_tag": "clarify",
-        "response_type": "clarify",
-        "coaching_tip": "Index finger pointing to lips, then rotating outward.",
-    },
-    {
         "id": "repair-3",
         "island_id": "repair",
         "order": 3,
@@ -167,18 +109,6 @@ REPAIR_PROMPTS: list[dict[str, Any]] = [
         "intent_tag": "clarify",
         "response_type": "clarify",
         "coaching_tip": "Thumb on chin, index finger wiggling up and down.",
-    },
-    {
-        "id": "repair-6",
-        "island_id": "repair",
-        "order": 6,
-        "situation": "confused",
-        "prompt_text": "You need to know WHY the NPC said that. Ask them.",
-        "expected_word": "why",
-        "acceptable_words": ["why"],
-        "intent_tag": "clarify",
-        "response_type": "clarify",
-        "coaching_tip": "Hand at forehead, pulling away into a Y shape.",
     },
 ]
 
