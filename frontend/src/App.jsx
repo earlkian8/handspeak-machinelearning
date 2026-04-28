@@ -18,6 +18,7 @@ import IslandOverview from './features/islands/IslandOverview';
 import Converse from './features/converse/Converse';
 import SignQuiz from './features/quiz/SignQuiz';
 import DailyChallenge from './features/daily/DailyChallenge';
+import SignMatch from './features/match/SignMatch';
 import Settings from './features/settings/Settings';
 
 function App() {
@@ -79,6 +80,7 @@ function App() {
           <Route path="/converse" element={guard(<Converse />)} />
           <Route path="/quiz" element={guard(<SignQuiz />)} />
           <Route path="/daily" element={guard(<DailyChallenge />)} />
+          <Route path="/match" element={guard(<SignMatch />)} />
 
           {/* Learn mode (reuses existing Study Voyage screens under the Islands journey) */}
           <Route path="/study" element={<Navigate to="/islands" replace />} />

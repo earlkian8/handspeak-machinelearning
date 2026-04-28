@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Settings, BookOpen, Trophy, Star, TrendingUp, Award, MessageCircle, ArrowRight, Target, Brain, Flame } from 'lucide-react';
+import { Settings, BookOpen, Trophy, Star, TrendingUp, Award, MessageCircle, ArrowRight, Target, Brain, Flame, Layers } from 'lucide-react';
 import { getStoredStudyProgress, getVoyageStats, loadStudyProgress, getCurrentIslandId } from '../study/studyVoyage';
 import { useIslands } from '../../contexts/IslandsContext';
 import EmojiIcon from '../../components/EmojiIcon';
@@ -266,6 +266,22 @@ export default function Dashboard({ user }) {
             <div>
               <div style={{ fontSize: 15, fontWeight: 900, color: 'white', lineHeight: 1.1 }}>Sign Quiz</div>
               <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', fontWeight: 700, marginTop: 3 }}>Watch a sign · pick the word</div>
+            </div>
+          </button>
+
+          {/* Sign Match */}
+          <button
+            onClick={() => navigate('/match')}
+            style={{ flex: '1 1 220px', padding: '18px 20px', borderRadius: 22, border: '1.5px solid rgba(129,140,248,0.35)', background: 'rgba(129,140,248,0.1)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 14, fontFamily: "'Nunito',sans-serif", transition: 'transform 0.18s ease, background 0.18s ease', textAlign: 'left' }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(129,140,248,0.2)'; e.currentTarget.style.transform = 'translateY(-3px)'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(129,140,248,0.1)'; e.currentTarget.style.transform = 'translateY(0)'; }}
+          >
+            <div style={{ width: 44, height: 44, borderRadius: 14, background: 'rgba(129,140,248,0.2)', border: '1px solid rgba(129,140,248,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <Layers size={22} color="#818cf8" />
+            </div>
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 900, color: 'white', lineHeight: 1.1 }}>Sign Match</div>
+              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', fontWeight: 700, marginTop: 3 }}>Flip cards · match signs</div>
             </div>
           </button>
 
