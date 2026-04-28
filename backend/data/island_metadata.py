@@ -1,7 +1,8 @@
 """Rich display metadata for every island served by /api/study/islands.
 
 build_islands() merges this with ALPHABET_TOPICS / STUDY_TOPICS from
-asl_data.py and adds a dedicated 'greetings' conversation island.
+asl_data.py and may include conversation islands when they contain
+playable levels.
 The frontend should fetch /api/study/islands and cache the result —
 nothing island-related should be hardcoded in the frontend anymore.
 """
@@ -144,41 +145,56 @@ _DEFAULT_THEMES = [
 _DEFAULT_ICONS = ["📚", "🎯", "🧩", "🚀", "🌈", "💡", "🎨", "🌊", "⭐", "🎭"]
 
 
-def _build_alphabet_island(topic: dict, order: int) -> dict[str, Any]:
-    meta = _CHAPTER_META.get(topic["id"], {})
-    chapter_num = order
-    return {
-        "id": topic["id"],
-        "title": topic["title"],
-        "order": order,
-        "icon": topic.get("icon", "🔤"),
-        "type": "alphabet",
-        "difficulty": meta.get("difficulty", "Easy"),
-        "difficulty_rank": 1,
-        "has_learn": True,
-        "has_drill": False,
-        "has_converse": False,
-        "intro": {
-            "title": f"Alphabet Chapter {chapter_num}",
-            "story": f"Master the foundational ASL alphabet letters in Chapter {chapter_num}. Each letter builds toward fluent signing.",
-            "description": f"Learn and practice the ASL letters in this chapter.",
-            "objective": f"Complete all letter levels in Alphabet Chapter {chapter_num}.",
-            "hint": meta.get("hint", "Hold each letter steady for 1-2 seconds. Clear finger positioning is key!"),
-        },
-        "theme": meta.get("theme", _DEFAULT_THEMES[order % len(_DEFAULT_THEMES)]),
-        "levels": [
-            {
+def _build_merged_alphabet_island() -> dict[str, Any]:
+    """Build a single merged 'Alphabet Island' from all alphabet chapter topics."""
+    from data.asl_data import ALPHABET_TOPICS
+
+    all_levels: list[dict[str, Any]] = []
+    level_order = 1
+    for topic in ALPHABET_TOPICS:
+        for p in topic["phrases"]:
+            all_levels.append({
                 "id": f"{topic['id']}::{p['id']}",
                 "phrase_id": p["id"],
-                "order": i + 1,
+                "order": level_order,
                 "type": "letter",
                 "label": p["label"],
                 "description": p["description"],
                 "tip": p["tip"],
                 "reward_xp": XP_PER_ALPHABET_LEVEL,
-            }
-            for i, p in enumerate(topic["phrases"])
-        ],
+            })
+            level_order += 1
+
+    return {
+        "id": "alphabet",
+        "title": "Alphabet Island",
+        "order": 1,
+        "icon": "🌴",
+        "type": "alphabet",
+        "difficulty": "Easy",
+        "difficulty_rank": 1,
+        "has_learn": True,
+        "has_drill": False,
+        "has_converse": False,
+        "boss": {
+            "name": "The Final Letter",
+            "icon": "👑",
+            "border_color": "#fbbf24",
+        },
+        "intro": {
+            "title": "Alphabet Island",
+            "story": "Welcome to the lush jungles of Alphabet Island! Master every ASL letter from A to Y as you trek through tropical terrain. Each letter conquered brings you closer to the Final Letter boss challenge!",
+            "description": "Learn and practice all ASL alphabet letters in one epic island journey.",
+            "objective": "Complete all 24 letter levels and defeat The Final Letter!",
+            "hint": "Hold each letter steady for 1-2 seconds. Clear finger and hand positioning is key!",
+        },
+        "theme": {
+            "sky": "linear-gradient(180deg,#065f46 0%,#047857 40%,#10b981 100%)",
+            "island": "linear-gradient(180deg,#34d399 0%,#059669 100%)",
+            "gradient": "linear-gradient(135deg, #065f46, #047857, #10b981)",
+            "particles": "leaves",
+        },
+        "levels": all_levels,
     }
 
 
@@ -188,6 +204,33 @@ def _build_vocab_island(topic: dict, order: int, idx: int) -> dict[str, Any]:
     icon = meta.get("icon", _DEFAULT_ICONS[idx % len(_DEFAULT_ICONS)])
     difficulty = meta.get("difficulty", "Medium")
     difficulty_rank = {"Easy": 1, "Medium": 2, "Hard": 3}.get(difficulty, 2)
+
+    # Per-island boss and theme configuration
+    _VOCAB_BOSS: dict[str, dict[str, Any]] = {
+        "chapter-1": {
+            "boss": {"name": "Daily Life Gauntlet", "icon": "⚡", "border_color": "#3b82f6"},
+            "theme_extra": {"gradient": "linear-gradient(135deg, #1e40af, #3b82f6, #93c5fd)", "particles": "clouds"},
+        },
+        "chapter-2": {
+            "boss": {"name": "The Emotion Master", "icon": "🎭", "border_color": "#a855f7"},
+            "theme_extra": {"gradient": "linear-gradient(135deg, #581c87, #7c3aed, #c084fc)", "particles": "orbs"},
+        },
+        "chapter-3": {
+            "boss": {"name": "Community Challenge", "icon": "🏛️", "border_color": "#d97706"},
+            "theme_extra": {"gradient": "linear-gradient(135deg, #92400e, #d97706, #fbbf24)", "particles": "leaves"},
+        },
+        "chapter-4": {
+            "boss": {"name": "Jungle Boss", "icon": "🐾", "border_color": "#059669"},
+            "theme_extra": {"gradient": "linear-gradient(135deg, #064e3b, #059669, #34d399)", "particles": "butterflies"},
+        },
+        "chapter-5": {
+            "boss": {"name": "Household Gauntlet", "icon": "🔑", "border_color": "#ea580c"},
+            "theme_extra": {"gradient": "linear-gradient(135deg, #9a3412, #ea580c, #fb923c)", "particles": "sparkles"},
+        },
+    }
+
+    boss_meta = _VOCAB_BOSS.get(topic["id"], {})
+
     levels = [
         {
             "id": f"{topic['id']}::{p['id']}",
@@ -201,7 +244,12 @@ def _build_vocab_island(topic: dict, order: int, idx: int) -> dict[str, Any]:
         }
         for i, p in enumerate(topic["phrases"])
     ]
-    return {
+
+    theme = meta.get("theme", _DEFAULT_THEMES[idx % len(_DEFAULT_THEMES)])
+    if "theme_extra" in boss_meta:
+        theme = {**theme, **boss_meta["theme_extra"]}
+
+    result = {
         "id": topic["id"],
         "title": title,
         "order": order,
@@ -216,31 +264,52 @@ def _build_vocab_island(topic: dict, order: int, idx: int) -> dict[str, Any]:
             "title": f"{title} Island",
             "story": meta.get("story", f"Learn and master essential signs in {title} on this island."),
             "description": f"Practice these signs and build your vocabulary for {title.lower()}.",
-            "objective": f"Complete all levels.",
+            "objective": f"Complete all levels and defeat the island boss!",
             "hint": meta.get("hint", "Keep your hand centered and clearly visible in the frame."),
         },
-        "theme": meta.get("theme", _DEFAULT_THEMES[idx % len(_DEFAULT_THEMES)]),
+        "theme": theme,
         "levels": levels,
     }
 
+    if "boss" in boss_meta:
+        result["boss"] = boss_meta["boss"]
+
+    return result
+
 
 def build_islands() -> list[dict[str, Any]]:
-    """Return the full ordered island list: alphabet -> conversation(greetings) -> vocabulary."""
-    from data.asl_data import ALPHABET_TOPICS, STUDY_TOPICS
+    """Return ordered islands: merged alphabet -> non-empty conversation -> vocabulary."""
+    from data.asl_data import STUDY_TOPICS
 
     result: list[dict[str, Any]] = []
 
-    base_order = 1
-    for idx, topic in enumerate(ALPHABET_TOPICS):
-        result.append(_build_alphabet_island(topic, base_order + idx))
+    # 1. Single merged Alphabet Island (was 4 separate chapters)
+    result.append(_build_merged_alphabet_island())
 
-    base_order += len(ALPHABET_TOPICS)
-    for idx, island in enumerate(CONVERSATION_ISLANDS):
+    # 2. Conversation islands
+    base_order = 2
+    conversation_count = 0
+    for island in CONVERSATION_ISLANDS:
         island_copy = island.copy()
-        island_copy["order"] = base_order + idx
+        if len(island_copy.get("levels") or []) == 0:
+            continue
+        island_copy["order"] = base_order + conversation_count
+        island_copy.setdefault("boss", {
+            "name": "The Grand Welcome",
+            "icon": "🤝",
+            "border_color": "#f97316",
+        })
+        island_copy.setdefault("theme", {})
+        island_copy["theme"] = {
+            **island_copy["theme"],
+            "gradient": "linear-gradient(135deg, #9a3412, #f97316, #fdba74)",
+            "particles": "stars",
+        }
         result.append(island_copy)
+        conversation_count += 1
 
-    base_order += len(CONVERSATION_ISLANDS)
+    # 3. Vocabulary islands
+    base_order += conversation_count
     for idx, topic in enumerate(STUDY_TOPICS):
         result.append(_build_vocab_island(topic, base_order + idx, idx))
 

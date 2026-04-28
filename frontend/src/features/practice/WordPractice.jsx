@@ -1,15 +1,34 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Hand, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Hand, RefreshCw, Search, X } from 'lucide-react';
 import { fetchJson } from '../../lib/api';
 import { normalizeWordEntry } from '../../lib/vocabulary';
 
-function WordCard({ word, onClick, accent }) {
+function WordCard({ word, onClick, accent, query }) {
+  // Highlight matching part of label
+  const label = word.label;
+  const q = query.trim().toLowerCase();
+  let content;
+  if (q && label.toLowerCase().includes(q)) {
+    const idx = label.toLowerCase().indexOf(q);
+    content = (
+      <>
+        {label.slice(0, idx)}
+        <mark style={{ background: 'rgba(251,191,36,0.55)', color: 'inherit', borderRadius: 3 }}>
+          {label.slice(idx, idx + q.length)}
+        </mark>
+        {label.slice(idx + q.length)}
+      </>
+    );
+  } else {
+    content = label;
+  }
+
   return (
     <button
       onClick={() => onClick(word)}
       style={{
-        width: 180,
+        width: 160,
         borderRadius: 20,
         border: '2px solid rgba(255,255,255,0.22)',
         background: 'rgba(255,255,255,0.1)',
@@ -36,27 +55,19 @@ function WordCard({ word, onClick, accent }) {
       }}
     >
       <div style={{
-        width: 94,
-        height: 94,
-        borderRadius: 18,
+        width: 88, height: 88, borderRadius: 18,
         background: 'rgba(255,255,255,0.92)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        color: accent,
-        fontSize: 19,
-        fontWeight: 900,
-        textAlign: 'center',
-        lineHeight: 1.1,
-        padding: '0 8px',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        color: accent, fontSize: 17, fontWeight: 900,
+        textAlign: 'center', lineHeight: 1.1, padding: '0 8px',
       }}>
         {word.label}
       </div>
-      <span style={{ fontSize: 10, fontWeight: 900, color: 'rgba(255,255,255,0.55)', letterSpacing: '0.18em' }}>
+      <span style={{ fontSize: 10, fontWeight: 900, color: 'rgba(255,255,255,0.5)', letterSpacing: '0.16em' }}>
         {word.chapter_id}
       </span>
-      <span style={{ fontSize: 15, fontWeight: 900, color: 'white', textShadow: '0 1px 4px rgba(0,0,0,0.4)' }}>
-        {word.label}
+      <span style={{ fontSize: 14, fontWeight: 900, color: 'white', textShadow: '0 1px 4px rgba(0,0,0,0.4)' }}>
+        {content}
       </span>
     </button>
   );
@@ -67,10 +78,11 @@ export default function WordPractice() {
   const [words, setWords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [query, setQuery] = useState('');
+  const searchRef = useRef(null);
 
   useEffect(() => {
     let active = true;
-
     fetchJson('/api/gesture/words')
       .then((data) => {
         if (!active) return;
@@ -83,52 +95,123 @@ export default function WordPractice() {
       .finally(() => {
         if (active) setLoading(false);
       });
-
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
   }, []);
 
-  const accentColor = useMemo(() => '#6ee7b7', []);
+  const filteredWords = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return words;
+    return words.filter((w) => w.label.toLowerCase().includes(q));
+  }, [words, query]);
+
+  const accentColor = '#6ee7b7';
 
   return (
     <div style={{
-      minHeight: '100vh',
-      display: 'flex',
-      flexDirection: 'column',
+      minHeight: '100vh', display: 'flex', flexDirection: 'column',
       fontFamily: "'Nunito', sans-serif",
       background: 'radial-gradient(ellipse at 18% 0%,#fb923c 0%,#ea580c 20%,#9a3412 50%,#431407 100%)',
-      position: 'relative',
-      overflow: 'hidden',
+      position: 'relative', overflow: 'hidden',
     }}>
+
+      {/* ── Header ── */}
       <header style={{
-        display: 'flex', alignItems: 'center', gap: 16, padding: '20px 32px',
-        background: 'rgba(0,0,0,0.15)', backdropFilter: 'blur(10px)',
-        borderBottom: '1px solid rgba(255,255,255,0.12)', position: 'relative', zIndex: 2,
+        display: 'flex', alignItems: 'center', gap: 16, padding: '18px 32px',
+        background: 'rgba(0,0,0,0.18)', backdropFilter: 'blur(12px)',
+        borderBottom: '1px solid rgba(255,255,255,0.12)',
+        position: 'sticky', top: 0, zIndex: 20,
+        flexWrap: 'wrap', rowGap: 12,
       }}>
         <button
           onClick={() => navigate('/dashboard')}
-          style={{ width: 46, height: 46, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.3)', background: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, boxShadow: '0 4px 14px rgba(0,0,0,0.25)', transition: 'all 0.2s' }}
+          style={{
+            width: 46, height: 46, borderRadius: '50%',
+            border: '2px solid rgba(255,255,255,0.3)',
+            background: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(8px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer', flexShrink: 0,
+            boxShadow: '0 4px 14px rgba(0,0,0,0.25)', transition: 'all 0.2s',
+          }}
           onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.24)'; e.currentTarget.style.transform = 'scale(1.08)'; }}
           onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.12)'; e.currentTarget.style.transform = 'scale(1)'; }}
         >
           <ArrowLeft size={20} color="white" />
         </button>
+
         <div>
-          <h1 style={{ fontSize: 26, fontWeight: 900, color: 'white', margin: 0, textShadow: '0 2px 10px rgba(0,0,0,0.4)' }}>
+          <h1 style={{ fontSize: 24, fontWeight: 900, color: 'white', margin: 0, textShadow: '0 2px 10px rgba(0,0,0,0.4)' }}>
             Word Practice
           </h1>
           <p style={{ margin: '2px 0 0', fontSize: 12, color: 'rgba(255,255,255,0.65)', fontWeight: 700 }}>
             Tap a word to open the camera challenge
           </p>
         </div>
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,0.12)', border: '1.5px solid rgba(255,255,255,0.25)', borderRadius: 99, padding: '7px 16px' }}>
+
+        {/* ── Search bar ── */}
+        <div style={{
+          flex: 1, minWidth: 200, maxWidth: 380,
+          marginLeft: 'auto',
+          display: 'flex', alignItems: 'center', gap: 10,
+          background: 'rgba(255,255,255,0.14)',
+          border: '1.5px solid rgba(255,255,255,0.28)',
+          borderRadius: 99,
+          padding: '8px 14px',
+          backdropFilter: 'blur(10px)',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.2)',
+          transition: 'border-color 0.2s, box-shadow 0.2s',
+        }}
+          onFocusCapture={(e) => {
+            e.currentTarget.style.borderColor = 'rgba(110,231,183,0.7)';
+            e.currentTarget.style.boxShadow = '0 0 0 3px rgba(110,231,183,0.18), 0 4px 20px rgba(0,0,0,0.2)';
+          }}
+          onBlurCapture={(e) => {
+            e.currentTarget.style.borderColor = 'rgba(255,255,255,0.28)';
+            e.currentTarget.style.boxShadow = '0 4px 20px rgba(0,0,0,0.2)';
+          }}
+        >
+          <Search size={16} color="rgba(255,255,255,0.7)" style={{ flexShrink: 0 }} />
+          <input
+            ref={searchRef}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search words… e.g. TV, happy, dog"
+            style={{
+              flex: 1, border: 'none', outline: 'none',
+              background: 'transparent', color: 'white',
+              fontSize: 13, fontWeight: 700,
+              fontFamily: "'Nunito', sans-serif",
+            }}
+          />
+          {query && (
+            <button
+              onClick={() => { setQuery(''); searchRef.current?.focus(); }}
+              style={{
+                border: 'none', background: 'rgba(255,255,255,0.2)',
+                borderRadius: '50%', width: 20, height: 20, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                flexShrink: 0, padding: 0,
+              }}
+            >
+              <X size={11} color="white" />
+            </button>
+          )}
+        </div>
+
+        {/* Count badge */}
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 8,
+          background: 'rgba(255,255,255,0.12)', border: '1.5px solid rgba(255,255,255,0.25)',
+          borderRadius: 99, padding: '7px 16px', flexShrink: 0,
+        }}>
           <Hand size={14} color="rgba(255,255,255,0.8)" />
-          <span style={{ fontSize: 12, fontWeight: 900, color: 'rgba(255,255,255,0.9)' }}>{words.length || '--'} words</span>
+          <span style={{ fontSize: 12, fontWeight: 900, color: 'rgba(255,255,255,0.9)' }}>
+            {query ? `${filteredWords.length} / ${words.length}` : `${words.length || '--'} words`}
+          </span>
         </div>
       </header>
 
-      <main style={{ flex: 1, padding: '32px 36px 48px', position: 'relative', zIndex: 2 }}>
+      {/* ── Content ── */}
+      <main style={{ flex: 1, padding: '32px 36px 64px', position: 'relative', zIndex: 2 }}>
         {loading ? (
           <div style={{ minHeight: 260, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 900 }}>
             Loading vocabulary...
@@ -144,22 +227,62 @@ export default function WordPractice() {
           </div>
         ) : (
           <section>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 22 }}>
+            {/* Result divider */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 24 }}>
               <div style={{ height: 1, flex: 1, background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.25))' }} />
-              <h2 style={{ fontSize: 12, fontWeight: 900, color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: '0.24em', margin: 0, whiteSpace: 'nowrap' }}>
-                100 Words
+              <h2 style={{ fontSize: 11, fontWeight: 900, color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: '0.24em', margin: 0, whiteSpace: 'nowrap' }}>
+                {query
+                  ? filteredWords.length > 0
+                    ? `${filteredWords.length} result${filteredWords.length !== 1 ? 's' : ''} for "${query}"`
+                    : `No results for "${query}"`
+                  : `${words.length} Words`}
               </h2>
               <div style={{ height: 1, flex: 1, background: 'linear-gradient(90deg, rgba(255,255,255,0.25), transparent)' }} />
             </div>
 
-            <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 14 }}>
-              {words.map((word) => (
-                <WordCard key={word.id} word={word} onClick={(target) => navigate(`/practice/${target.id}`)} accent={accentColor} />
-              ))}
-            </div>
+            {/* Empty state */}
+            {filteredWords.length === 0 && query ? (
+              <div style={{
+                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                minHeight: 220, gap: 14,
+              }}>
+                <div style={{
+                  width: 72, height: 72, borderRadius: '50%',
+                  background: 'rgba(255,255,255,0.1)', border: '2px solid rgba(255,255,255,0.2)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <Search size={28} color="rgba(255,255,255,0.5)" />
+                </div>
+                <p style={{ fontSize: 16, fontWeight: 900, color: 'rgba(255,255,255,0.7)', margin: 0 }}>
+                  No word found for "{query}"
+                </p>
+                <button
+                  onClick={() => setQuery('')}
+                  style={{ border: 'none', borderRadius: 99, padding: '9px 22px', cursor: 'pointer', background: 'rgba(255,255,255,0.18)', color: 'white', fontWeight: 900, fontSize: 13 }}
+                >
+                  Clear search
+                </button>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 14 }}>
+                {filteredWords.map((word) => (
+                  <WordCard
+                    key={word.id}
+                    word={word}
+                    onClick={(target) => navigate(`/practice/${target.id}`)}
+                    accent={accentColor}
+                    query={query}
+                  />
+                ))}
+              </div>
+            )}
           </section>
         )}
       </main>
+
+      <style>{`
+        input::placeholder { color: rgba(255,255,255,0.45); }
+      `}</style>
     </div>
   );
 }

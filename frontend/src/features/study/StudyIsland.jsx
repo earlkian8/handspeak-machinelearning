@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, CheckCircle2, Lock, Play, Star, Zap, Target, Hand, Users, Palette, Utensils, PawPrint } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Lock, Play, Star, Zap, Target, Flame, Crown, ChevronRight, Trophy } from 'lucide-react';
 import {
   getInitialStudyProgress,
   getStoredStudyProgress,
@@ -9,65 +9,221 @@ import {
   isIslandUnlocked,
   isLevelCompleted,
   getIslandProgress,
+  isBossLevel,
+  getLevelDifficultyZone,
 } from './studyVoyage';
 import { useIslands } from '../../contexts/IslandsContext';
 
-const DIFF_META = {
-  Easy:   { label: 'Easy',   bg: 'linear-gradient(135deg,#22d3ee,#06b6d4)', text: '#083344', shadow: 'rgba(6,182,212,0.55)' },
-  Medium: { label: 'Medium', bg: 'linear-gradient(135deg,#fb923c,#ef4444)', text: '#fff',     shadow: 'rgba(251,146,60,0.55)' },
-  Hard:   { label: 'Hard',   bg: 'linear-gradient(135deg,#a855f7,#7c3aed)', text: '#fff',     shadow: 'rgba(168,85,247,0.55)' },
+const DIFF_COLORS = {
+  Beginner: { bg: 'rgba(52,211,153,0.15)', text: '#6ee7b7', border: 'rgba(52,211,153,0.3)' },
+  Easy:     { bg: 'rgba(34,211,238,0.15)', text: '#67e8f9', border: 'rgba(34,211,238,0.3)' },
+  Medium:   { bg: 'rgba(251,191,36,0.15)', text: '#fde68a', border: 'rgba(251,191,36,0.3)' },
+  Hard:     { bg: 'rgba(239,68,68,0.15)', text: '#fca5a5', border: 'rgba(239,68,68,0.3)' },
 };
 
-const ISLAND_ICONS = {
-  greetings: { Icon: Hand,     color: '#0ea5e9' },
-  family:    { Icon: Users,    color: '#22c55e' },
-  colors:    { Icon: Palette,  color: '#a855f7' },
-  food:      { Icon: Utensils, color: '#f97316' },
-  animals:   { Icon: PawPrint, color: '#14b8a6' },
-};
+/* ── snake path layout calculator ── */
+function getSnakePosition(index, total) {
+  const ITEMS_PER_ROW = 5;
+  const row = Math.floor(index / ITEMS_PER_ROW);
+  const colIndex = index % ITEMS_PER_ROW;
+  const isReversed = row % 2 === 1;
+  const col = isReversed ? ITEMS_PER_ROW - 1 - colIndex : colIndex;
+  return { row, col, isReversed };
+}
+
+/* ── milestone marker ── */
+function MilestoneMarker({ index }) {
+  return (
+    <div style={{
+      position: 'absolute', top: -18, left: '50%', transform: 'translateX(-50%)',
+      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+      zIndex: 5, pointerEvents: 'none',
+    }}>
+      <div style={{
+        width: 24, height: 24, borderRadius: '50%',
+        background: 'linear-gradient(135deg, #fbbf24, #f59e0b)',
+        border: '2px solid #fde68a',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        boxShadow: '0 2px 12px rgba(251,191,36,0.4)',
+      }}>
+        <Star size={12} fill="#fff" color="#fff" />
+      </div>
+    </div>
+  );
+}
+
+/* ── level node on the snake path ── */
+function LevelNode({ level, index, completed, levelUnlocked, isBoss, bossInfo, isCurrentNext, onClick, totalLevels }) {
+  const zone = getLevelDifficultyZone(index, totalLevels);
+  const zoneColor = DIFF_COLORS[zone] || DIFF_COLORS.Easy;
+  const nodeSize = isBoss ? 80 : 56;
+
+  return (
+    <div
+      onClick={() => levelUnlocked && onClick()}
+      style={{
+        position: 'relative',
+        width: nodeSize, height: nodeSize,
+        cursor: levelUnlocked ? 'pointer' : 'not-allowed',
+        transition: 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+        animation: isCurrentNext ? 'node-bounce 2s ease-in-out infinite' : 'none',
+      }}
+      onMouseEnter={(e) => { if (levelUnlocked) e.currentTarget.style.transform = 'scale(1.15)'; }}
+      onMouseLeave={(e) => { if (levelUnlocked) e.currentTarget.style.transform = 'scale(1)'; }}
+    >
+      {/* Milestone marker every 6 levels */}
+      {index > 0 && index % 6 === 0 && !isBoss && <MilestoneMarker index={index} />}
+
+      {/* Boss glow aura */}
+      {isBoss && isCurrentNext && (
+        <div style={{
+          position: 'absolute', inset: -8, borderRadius: '50%',
+          background: `radial-gradient(circle, ${bossInfo?.border_color || '#fbbf24'}55, transparent 70%)`,
+          animation: 'boss-pulse 1.5s ease-in-out infinite',
+          zIndex: 0,
+        }} />
+      )}
+
+      {/* Node circle */}
+      <div style={{
+        width: '100%', height: '100%', borderRadius: '50%',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+        background: completed
+          ? 'linear-gradient(135deg, #34d399, #22d3ee)'
+          : isBoss
+          ? isCurrentNext
+            ? `linear-gradient(135deg, #ef4444, ${bossInfo?.border_color || '#fbbf24'})`
+            : levelUnlocked
+            ? 'linear-gradient(135deg, #b91c1c, #991b1b)'
+            : 'rgba(30,41,59,0.8)'
+          : levelUnlocked
+          ? 'rgba(255,255,255,0.12)'
+          : 'rgba(15,23,42,0.8)',
+        border: completed
+          ? '3px solid #6ee7b7'
+          : isBoss
+          ? `3px solid ${isCurrentNext ? bossInfo?.border_color || '#fbbf24' : levelUnlocked ? '#ef4444' : 'rgba(100,116,139,0.4)'}`
+          : levelUnlocked
+          ? `3px solid ${isCurrentNext ? '#60a5fa' : 'rgba(255,255,255,0.25)'}`
+          : '3px solid rgba(100,116,139,0.25)',
+        boxShadow: completed
+          ? '0 4px 16px rgba(52,211,153,0.4)'
+          : isBoss && isCurrentNext
+          ? `0 0 20px ${bossInfo?.border_color || '#fbbf24'}66, 0 8px 24px rgba(0,0,0,0.4)`
+          : isCurrentNext
+          ? '0 0 16px rgba(96,165,250,0.4), 0 8px 24px rgba(0,0,0,0.3)'
+          : '0 4px 12px rgba(0,0,0,0.3)',
+        position: 'relative', zIndex: 1,
+        transition: 'all 0.3s',
+      }}>
+        {/* Content */}
+        {completed ? (
+          <CheckCircle2 size={isBoss ? 28 : 20} color="white" />
+        ) : isBoss ? (
+          <div style={{ textAlign: 'center' }}>
+            <span style={{ fontSize: 18 }}>{bossInfo?.icon || '👑'}</span>
+          </div>
+        ) : levelUnlocked ? (
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: isBoss ? 16 : 14, fontWeight: 900, color: 'white', lineHeight: 1 }}>
+              {level.label}
+            </div>
+          </div>
+        ) : (
+          <Lock size={isBoss ? 22 : 14} color="rgba(255,255,255,0.35)" />
+        )}
+      </div>
+
+      {/* Label below */}
+      <div style={{
+        position: 'absolute', top: '100%', left: '50%', transform: 'translateX(-50%)',
+        marginTop: 4, textAlign: 'center', whiteSpace: 'nowrap',
+      }}>
+        {isBoss ? (
+          <div style={{
+            fontSize: 8, fontWeight: 900, color: bossInfo?.border_color || '#fbbf24',
+            letterSpacing: '0.08em', textTransform: 'uppercase',
+            display: 'flex', alignItems: 'center', gap: 3,
+          }}>
+            <Flame size={8} /> FINAL
+          </div>
+        ) : (
+          <div style={{
+            fontSize: 9, fontWeight: 800, color: completed ? '#6ee7b7' : levelUnlocked ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.25)',
+          }}>
+            {level.order}
+          </div>
+        )}
+      </div>
+
+      {/* Completed star */}
+      {completed && (
+        <div style={{
+          position: 'absolute', top: -4, right: -4, zIndex: 2,
+          width: 18, height: 18, borderRadius: '50%',
+          background: '#fbbf24', border: '2px solid #fde68a',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          boxShadow: '0 2px 6px rgba(251,191,36,0.4)',
+        }}>
+          <Star size={9} fill="white" color="white" />
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function StudyIsland() {
   const { islandId } = useParams();
   const navigate = useNavigate();
   const { getIslandById, islandsLoading } = useIslands();
   const [progress, setProgress] = useState(getInitialStudyProgress());
+  const nextLevelRef = useRef(null);
 
   useEffect(() => {
     let active = true;
     const cached = getStoredStudyProgress();
     setProgress(cached);
-
     loadStudyProgress().then((normalized) => {
       if (!active) return;
       setProgress(normalized);
       saveStudyProgress(normalized);
     });
-
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
   }, []);
 
   const island = getIslandById(islandId);
   const islandProgress = useMemo(() => getIslandProgress(progress, islandId), [progress, islandId]);
 
-  /* ── error states ── */
+  // These computed values need to be safe for null island (before early returns)
+  const phraseCompleteCount = island ? island.levels.filter(l => isLevelCompleted(progress, island.id, l.id)).length : 0;
+  const nextPhraseLevel = island ? island.levels.find(l => !isLevelCompleted(progress, island.id, l.id)) : null;
+  const progressPct = island ? Math.round((phraseCompleteCount / Math.max(island.levels.length, 1)) * 100) : 0;
+  const bossInfo = island?.boss || null;
+  const unlocked = island ? isIslandUnlocked(progress, island.id) : false;
+
+  // ALL hooks must be above early returns
+  useEffect(() => {
+    if (nextLevelRef.current) {
+      setTimeout(() => {
+        nextLevelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 300);
+    }
+  }, [nextPhraseLevel?.id]);
+
   if (islandsLoading) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'radial-gradient(ellipse at 18% 0%,#0ea5e9 0%,#0369a1 30%,#082f49 65%,#041421 100%)', color: 'white', padding: 20, fontFamily: "'Nunito',sans-serif" }}>
-        <div style={{ textAlign: 'center', opacity: 0.7, fontWeight: 700, fontSize: 16 }}>
-          Rendering Island Data…
-        </div>
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#020617', color: 'white', fontFamily: "'Nunito',sans-serif" }}>
+        <div style={{ textAlign: 'center', opacity: 0.7, fontWeight: 700, fontSize: 16 }}>Rendering Island Data…</div>
       </div>
     );
   }
 
   if (!island) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'radial-gradient(ellipse at 18% 0%,#0ea5e9 0%,#0369a1 30%,#082f49 65%,#041421 100%)', color: 'white', padding: 20, fontFamily: "'Nunito',sans-serif" }}>
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#020617', color: 'white', fontFamily: "'Nunito',sans-serif" }}>
         <div style={{ textAlign: 'center' }}>
           <p style={{ fontSize: 20, fontWeight: 900, margin: '0 0 16px' }}>Island not found.</p>
-          <button onClick={() => navigate('/study')}
+          <button onClick={() => navigate('/islands')}
             style={{ border: 'none', borderRadius: 14, padding: '12px 22px', cursor: 'pointer', fontWeight: 900, fontSize: 15, background: 'linear-gradient(135deg,#34d399,#22d3ee)', color: '#064e3b', fontFamily: "'Nunito',sans-serif" }}>
             Back to World Map
           </button>
@@ -76,11 +232,9 @@ export default function StudyIsland() {
     );
   }
 
-  const unlocked = isIslandUnlocked(progress, island.id);
-
   if (!unlocked) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'radial-gradient(ellipse at 18% 0%,#0ea5e9 0%,#0369a1 30%,#082f49 65%,#041421 100%)', color: 'white', padding: 20, fontFamily: "'Nunito',sans-serif" }}>
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#020617', color: 'white', fontFamily: "'Nunito',sans-serif" }}>
         <div style={{ textAlign: 'center', maxWidth: 440 }}>
           <div style={{ width: 72, height: 72, borderRadius: '50%', background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
             <Lock size={34} color="rgba(255,255,255,0.8)" />
@@ -89,7 +243,7 @@ export default function StudyIsland() {
           <p style={{ color: 'rgba(255,255,255,0.7)', lineHeight: 1.6, marginBottom: 22 }}>
             Clear the previous island first to unlock this island.
           </p>
-          <button onClick={() => navigate('/study')}
+          <button onClick={() => navigate('/islands')}
             style={{ border: 'none', borderRadius: 14, padding: '12px 22px', cursor: 'pointer', fontWeight: 900, fontSize: 15, background: 'linear-gradient(135deg,#34d399,#22d3ee)', color: '#064e3b', fontFamily: "'Nunito',sans-serif" }}>
             Back to World Map
           </button>
@@ -98,223 +252,237 @@ export default function StudyIsland() {
     );
   }
 
-  const phraseCompleteCount = island.levels.filter((level) => isLevelCompleted(progress, island.id, level.id)).length;
-  const nextPhraseLevel = island.levels.find((level) => !isLevelCompleted(progress, island.id, level.id));
-  const diff = DIFF_META[island.difficulty] || DIFF_META.Easy;
-
   const launchLevel = (levelId) => navigate(`/study/${island.id}/level/${levelId}`);
 
-  const progressPct = Math.round((phraseCompleteCount / Math.max(island.levels.length, 1)) * 100);
+  // Calculate snake grid layout
+  const ITEMS_PER_ROW = 5;
+  const totalRows = Math.ceil(island.levels.length / ITEMS_PER_ROW);
 
   return (
     <div style={{
       minHeight: '100vh',
-      /* Fixed solid dark ocean — does NOT parse island.theme.sky */
-      background: 'radial-gradient(ellipse at 18% 0%,#0ea5e9 0%,#0369a1 30%,#082f49 65%,#041421 100%)',
+      background: 'radial-gradient(ellipse at 20% -10%, #1e3a5f 0%, #0f172a 50%, #020617 100%)',
       color: 'white',
       fontFamily: "'Nunito', sans-serif",
     }}>
-
-      {/* ── header ── */}
-      <header style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '20px 26px 14px' }}>
-        <button
-          onClick={() => navigate('/study')}
-          style={{
-            width: 46, height: 46, borderRadius: '50%',
-            border: '2px solid rgba(255,255,255,0.28)',
-            background: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(8px)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: 'pointer', boxShadow: '0 4px 14px rgba(0,0,0,0.25)',
-            transition: 'all 0.2s',
-          }}
-          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.24)'; e.currentTarget.style.transform = 'scale(1.08)'; }}
-          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.12)'; e.currentTarget.style.transform = 'scale(1)'; }}
-        >
-          <ArrowLeft size={20} color="white" />
-        </button>
-
-        <div style={{ flex: 1 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-            {(() => {
-              const meta = ISLAND_ICONS[island.id];
-              if (!meta) return null;
-              const { Icon, color } = meta;
-              return (
-                <div style={{
-                  width: 36, height: 36, borderRadius: 10, flexShrink: 0,
-                  background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(6px)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  boxShadow: '0 2px 10px rgba(0,0,0,0.2)',
+      {/* ── sticky header ── */}
+      <header style={{
+        position: 'sticky', top: 0, zIndex: 20,
+        background: 'rgba(2,6,23,0.9)', backdropFilter: 'blur(16px)',
+        borderBottom: '1px solid rgba(255,255,255,0.08)',
+        padding: '14px 20px',
+      }}>
+        <div style={{ maxWidth: 700, margin: '0 auto' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+            <button onClick={() => navigate(`/islands/${island.id}`)}
+              style={{
+                width: 38, height: 38, borderRadius: '50%',
+                border: '2px solid rgba(255,255,255,0.2)',
+                background: 'rgba(255,255,255,0.08)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: 'pointer', flexShrink: 0,
+              }}>
+              <ArrowLeft size={16} color="white" />
+            </button>
+            <div style={{ flex: 1 }}>
+              <h1 style={{ margin: 0, fontSize: 18, fontWeight: 900 }}>{island.title}</h1>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2 }}>
+                <span style={{
+                  fontSize: 9, fontWeight: 900, padding: '2px 8px', borderRadius: 99,
+                  background: island.difficulty === 'Easy' ? 'rgba(52,211,153,0.2)' : 'rgba(251,191,36,0.2)',
+                  color: island.difficulty === 'Easy' ? '#6ee7b7' : '#fde68a',
+                  letterSpacing: '0.1em', textTransform: 'uppercase',
                 }}>
-                  <Icon size={18} color={color} strokeWidth={2.2} />
-                </div>
-              );
-            })()}
-            <h1 style={{ margin: 0, fontSize: 25, fontWeight: 900, textShadow: '0 2px 10px rgba(0,0,0,0.4)' }}>
-              {island.title} Island
-            </h1>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 5 }}>
-            <span style={{
-              background: diff.bg, color: diff.text,
-              fontSize: 9.5, fontWeight: 900, letterSpacing: '0.15em',
-              textTransform: 'uppercase', padding: '3px 12px', borderRadius: 99,
-              boxShadow: `0 2px 8px ${diff.shadow}`,
+                  {island.difficulty}
+                </span>
+                <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', fontWeight: 700 }}>
+                  {phraseCompleteCount}/{island.levels.length} levels
+                </span>
+              </div>
+            </div>
+            <div style={{
+              background: 'rgba(255,255,255,0.08)', borderRadius: 12,
+              padding: '6px 14px', textAlign: 'center',
             }}>
-              {island.difficulty}
-            </span>
+              <div style={{ fontSize: 9, fontWeight: 900, color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Progress</div>
+              <div style={{ fontSize: 16, fontWeight: 900, color: '#34d399' }}>{progressPct}%</div>
+            </div>
           </div>
-        </div>
-
-        {/* progress badge */}
-        <div style={{
-          borderRadius: 16, background: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(8px)',
-          border: '1.5px solid rgba(255,255,255,0.25)', padding: '10px 18px',
-          textAlign: 'center', boxShadow: '0 4px 18px rgba(0,0,0,0.2)',
-        }}>
-          <p style={{ margin: 0, fontSize: 10, color: 'rgba(255,255,255,0.65)', textTransform: 'uppercase', letterSpacing: '0.12em', fontWeight: 800 }}>Progress</p>
-          <p style={{ margin: '3px 0 0', fontSize: 19, fontWeight: 900, color: 'white', lineHeight: 1 }}>
-            {phraseCompleteCount}<span style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)' }}>/{island.levels.length}</span>
-          </p>
-        </div>
-      </header>
-
-      <main style={{ padding: '10px 26px 36px', maxWidth: 1160, margin: '0 auto' }}>
-
-        {/* ── progress bar ── */}
-        <div style={{ marginBottom: 20 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-            <span style={{ fontSize: 12, fontWeight: 800, color: 'rgba(255,255,255,0.65)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Island Progress</span>
-            <span style={{ fontSize: 12, fontWeight: 900, color: '#34d399' }}>{progressPct}%</span>
-          </div>
-          <div style={{ height: 10, borderRadius: 99, background: 'rgba(255,255,255,0.12)', overflow: 'hidden' }}>
+          {/* Progress bar */}
+          <div style={{ height: 6, borderRadius: 99, background: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
             <div style={{
               height: '100%', borderRadius: 99,
               width: `${progressPct}%`, transition: 'width 0.8s ease',
               background: progressPct === 100 ? 'linear-gradient(90deg,#fbbf24,#f59e0b)' : 'linear-gradient(90deg,#34d399,#22d3ee)',
-              boxShadow: '0 0 10px rgba(52,211,153,0.6)',
+              boxShadow: '0 0 8px rgba(52,211,153,0.4)',
             }} />
           </div>
         </div>
+      </header>
 
-        {/* ── objective + continue button ── */}
-        <div style={{
-          background: 'rgba(255,255,255,0.1)', backdropFilter: 'blur(10px)',
-          border: '1.5px solid rgba(255,255,255,0.22)',
-          borderRadius: 20, padding: '16px 20px', marginBottom: 22,
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap',
-          boxShadow: '0 8px 28px rgba(0,0,0,0.2)',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{
-              width: 30, height: 30, borderRadius: '50%', flexShrink: 0,
-              background: 'linear-gradient(135deg,#34d399,#22d3ee)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: '0 4px 12px rgba(52,211,153,0.5)',
-            }}>
-              <Target size={14} color="white" />
+      <main style={{ padding: '24px 20px 120px', maxWidth: 700, margin: '0 auto' }}>
+        {/* Continue button */}
+        {nextPhraseLevel && (
+          <div style={{
+            background: 'rgba(255,255,255,0.06)', border: '1.5px solid rgba(255,255,255,0.12)',
+            borderRadius: 18, padding: '14px 18px', marginBottom: 28,
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{
+                width: 32, height: 32, borderRadius: '50%',
+                background: 'linear-gradient(135deg, #34d399, #22d3ee)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <Target size={14} color="white" />
+              </div>
+              <span style={{ fontSize: 14, fontWeight: 800, color: 'rgba(255,255,255,0.85)' }}>
+                {isBossLevel(island.levels.indexOf(nextPhraseLevel), island.levels.length)
+                  ? `🔥 Boss Challenge: ${nextPhraseLevel.label}`
+                  : `Next: Level ${nextPhraseLevel.order} — ${nextPhraseLevel.label}`}
+              </span>
             </div>
-            <span style={{ fontSize: 14, color: 'rgba(255,255,255,0.88)', fontWeight: 800, lineHeight: 1.4 }}>
-              {island.intro.objective}
-            </span>
-          </div>
-          {nextPhraseLevel && (
-            <button
-              onClick={() => launchLevel(nextPhraseLevel.id)}
+            <button onClick={() => launchLevel(nextPhraseLevel.id)}
               style={{
-                border: 'none', borderRadius: 13, padding: '11px 20px', cursor: 'pointer',
-                fontWeight: 900, fontSize: 14, color: '#064e3b',
-                background: 'linear-gradient(135deg,#34d399,#22d3ee)',
-                boxShadow: '0 6px 20px rgba(52,211,153,0.45)',
-                fontFamily: "'Nunito',sans-serif",
-                transition: 'transform 0.18s ease',
-                display: 'flex', alignItems: 'center', gap: 7,
-              }}
-              onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; }}
-              onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; }}
-            >
-              <Play size={14} fill="#064e3b" color="#064e3b" />
-              Continue Level {nextPhraseLevel.order}
+                border: 'none', borderRadius: 12, padding: '10px 18px', cursor: 'pointer',
+                fontWeight: 900, fontSize: 13,
+                background: isBossLevel(island.levels.indexOf(nextPhraseLevel), island.levels.length)
+                  ? 'linear-gradient(135deg, #ef4444, #fbbf24)'
+                  : 'linear-gradient(135deg, #34d399, #22d3ee)',
+                color: '#000', fontFamily: "'Nunito',sans-serif",
+                display: 'flex', alignItems: 'center', gap: 6,
+              }}>
+              <Play size={12} fill="#000" color="#000" /> Go
             </button>
-          )}
-        </div>
+          </div>
+        )}
 
-        {/* ── word level cards ── */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(220px,1fr))', gap: 14, marginBottom: 20 }}>
-          {island.levels.map((level, idx) => {
-            const completed = isLevelCompleted(progress, island.id, level.id);
-            const levelUnlocked = idx === 0 || isLevelCompleted(progress, island.id, island.levels[idx - 1].id);
+        {/* ── Snake path grid ── */}
+        <div style={{ position: 'relative' }}>
+          {Array.from({ length: totalRows }, (_, rowIdx) => {
+            const startIdx = rowIdx * ITEMS_PER_ROW;
+            const rowLevels = island.levels.slice(startIdx, startIdx + ITEMS_PER_ROW);
+            const isReversed = rowIdx % 2 === 1;
+            const items = isReversed ? [...rowLevels].reverse() : rowLevels;
 
             return (
-              <button
-                key={level.id}
-                onClick={() => levelUnlocked && launchLevel(level.id)}
-                style={{
-                  border: completed
-                    ? '2px solid rgba(52,211,153,0.65)'
-                    : levelUnlocked
-                    ? '2px solid rgba(255,255,255,0.22)'
-                    : '2px solid rgba(255,255,255,0.08)',
-                  borderRadius: 18,
-                  background: completed
-                    ? 'linear-gradient(135deg,rgba(52,211,153,0.22),rgba(34,211,238,0.2))'
-                    : levelUnlocked
-                    ? 'rgba(255,255,255,0.1)'
-                    : 'rgba(255,255,255,0.05)',
-                  backdropFilter: 'blur(8px)',
-                  color: 'white',
-                  textAlign: 'left',
-                  padding: '15px 15px 13px',
-                  cursor: levelUnlocked ? 'pointer' : 'not-allowed',
-                  opacity: levelUnlocked ? 1 : 0.56,
-                  fontFamily: "'Nunito',sans-serif",
-                  transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-                  boxShadow: completed ? '0 8px 24px rgba(52,211,153,0.18)' : '0 4px 16px rgba(0,0,0,0.22)',
-                }}
-                onMouseEnter={e => { if (levelUnlocked) { e.currentTarget.style.transform = 'translateY(-5px) scale(1.02)'; e.currentTarget.style.boxShadow = '0 18px 42px rgba(0,0,0,0.38)'; } }}
-                onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0) scale(1)'; e.currentTarget.style.boxShadow = completed ? '0 8px 24px rgba(52,211,153,0.18)' : '0 4px 16px rgba(0,0,0,0.22)'; }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 9 }}>
-                  <span style={{
-                    fontSize: 9.5, letterSpacing: '0.13em', textTransform: 'uppercase',
-                    color: 'rgba(255,255,255,0.65)', fontWeight: 900,
-                    background: 'rgba(255,255,255,0.1)', padding: '2px 9px', borderRadius: 99,
-                  }}>
-                    Level {level.order}
-                  </span>
-                  <div style={{
-                    width: 27, height: 27, borderRadius: '50%',
-                    background: completed
-                      ? 'linear-gradient(135deg,#34d399,#22d3ee)'
-                      : levelUnlocked
-                      ? 'rgba(255,255,255,0.16)'
-                      : 'rgba(255,255,255,0.08)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    boxShadow: completed ? '0 2px 8px rgba(52,211,153,0.5)' : 'none',
-                    flexShrink: 0,
-                  }}>
-                    {completed
-                      ? <CheckCircle2 size={15} color="white" />
-                      : levelUnlocked
-                      ? <Play size={12} color="white" fill="white" />
-                      : <Lock size={12} color="rgba(255,255,255,0.6)" />}
-                  </div>
+              <div key={rowIdx}>
+                {/* Row of nodes */}
+                <div style={{
+                  display: 'flex',
+                  justifyContent: rowLevels.length < ITEMS_PER_ROW ? (isReversed ? 'flex-end' : 'flex-start') : 'space-between',
+                  alignItems: 'center',
+                  padding: '20px 10px',
+                  gap: 8,
+                  position: 'relative',
+                }}>
+                  {/* SVG path connecting nodes in this row */}
+                  <svg style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 0 }}>
+                    {items.map((_, i) => {
+                      if (i === items.length - 1) return null;
+                      const actualIdx = isReversed ? startIdx + (rowLevels.length - 1 - i) : startIdx + i;
+                      const done = isLevelCompleted(progress, island.id, island.levels[actualIdx]?.id);
+                      const x1 = `${(i / (items.length - 1 || 1)) * 80 + 10}%`;
+                      const x2 = `${((i + 1) / (items.length - 1 || 1)) * 80 + 10}%`;
+                      return (
+                        <line key={i} x1={x1} y1="50%" x2={x2} y2="50%"
+                          stroke={done ? '#34d399' : 'rgba(255,255,255,0.1)'}
+                          strokeWidth="3" strokeDasharray={done ? 'none' : '6 4'}
+                          strokeLinecap="round" opacity={done ? 0.5 : 0.4}
+                        />
+                      );
+                    })}
+                  </svg>
+
+                  {items.map((level, i) => {
+                    const actualIdx = isReversed ? startIdx + (rowLevels.length - 1 - i) : startIdx + i;
+                    const completed = isLevelCompleted(progress, island.id, level.id);
+                    const lvlUnlocked = actualIdx === 0 || isLevelCompleted(progress, island.id, island.levels[actualIdx - 1]?.id);
+                    const isNext = nextPhraseLevel?.id === level.id;
+                    const boss = isBossLevel(actualIdx, island.levels.length);
+
+                    return (
+                      <div key={level.id} ref={isNext ? nextLevelRef : null} style={{ position: 'relative', zIndex: 1 }}>
+                        <LevelNode
+                          level={level}
+                          index={actualIdx}
+                          completed={completed}
+                          levelUnlocked={lvlUnlocked}
+                          isBoss={boss}
+                          bossInfo={bossInfo}
+                          isCurrentNext={isNext}
+                          totalLevels={island.levels.length}
+                          onClick={() => launchLevel(level.id)}
+                        />
+                      </div>
+                    );
+                  })}
                 </div>
 
-                <div style={{ fontSize: 18, fontWeight: 900, marginBottom: 5 }}>{level.label}</div>
-                <p style={{ margin: 0, fontSize: 13, color: 'rgba(255,255,255,0.74)', lineHeight: 1.5 }}>{level.description}</p>
-
-                {completed && (
-                  <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <Star size={11} fill="#fbbf24" color="#fbbf24" />
-                    <span style={{ fontSize: 11, fontWeight: 900, color: '#fbbf24' }}>Completed</span>
+                {/* Vertical connector between rows */}
+                {rowIdx < totalRows - 1 && (
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: isReversed ? 'flex-start' : 'flex-end',
+                    padding: '0 30px',
+                  }}>
+                    <svg width="30" height="36" viewBox="0 0 30 36">
+                      <path d="M 15 0 C 5 10, 25 20, 15 36"
+                        fill="none"
+                        stroke={isLevelCompleted(progress, island.id, island.levels[startIdx + rowLevels.length - 1]?.id) ? '#34d399' : 'rgba(255,255,255,0.1)'}
+                        strokeWidth="3" strokeDasharray="6 4"
+                        strokeLinecap="round" opacity="0.5"
+                      />
+                    </svg>
                   </div>
                 )}
-              </button>
+              </div>
             );
           })}
         </div>
       </main>
+
+      {/* Floating continue button */}
+      {nextPhraseLevel && (
+        <div style={{
+          position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)',
+          zIndex: 30,
+        }}>
+          <button onClick={() => launchLevel(nextPhraseLevel.id)}
+            style={{
+              border: 'none', borderRadius: 50, padding: '14px 28px', cursor: 'pointer',
+              fontWeight: 900, fontSize: 14,
+              background: isBossLevel(island.levels.indexOf(nextPhraseLevel), island.levels.length)
+                ? 'linear-gradient(135deg, #ef4444, #fbbf24)'
+                : 'linear-gradient(135deg, #34d399, #22d3ee)',
+              color: '#000', fontFamily: "'Nunito',sans-serif",
+              boxShadow: '0 8px 32px rgba(0,0,0,0.5), 0 0 20px rgba(52,211,153,0.3)',
+              display: 'flex', alignItems: 'center', gap: 8,
+              animation: 'float-btn 3s ease-in-out infinite',
+            }}>
+            {isBossLevel(island.levels.indexOf(nextPhraseLevel), island.levels.length) ? (
+              <><Flame size={16} /> Boss: {nextPhraseLevel.label}</>
+            ) : (
+              <><Play size={14} fill="#000" color="#000" /> Continue Level {nextPhraseLevel.order}</>
+            )}
+          </button>
+        </div>
+      )}
+
+      <style>{`
+        @keyframes node-bounce {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-6px); }
+        }
+        @keyframes boss-pulse {
+          0%, 100% { opacity: 0.4; transform: scale(1); }
+          50% { opacity: 0.8; transform: scale(1.1); }
+        }
+        @keyframes float-btn {
+          0%, 100% { transform: translateX(-50%) translateY(0); }
+          50% { transform: translateX(-50%) translateY(-4px); }
+        }
+      `}</style>
     </div>
   );
 }

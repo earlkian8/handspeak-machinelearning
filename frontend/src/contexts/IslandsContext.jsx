@@ -1,7 +1,12 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { toast } from 'react-hot-toast';
 import { fetchJson } from '../lib/api';
-import { ISLANDS_STORAGE_KEY, setIslandsCache } from '../features/study/studyVoyage';
+import {
+  ISLANDS_STORAGE_KEY,
+  STUDY_PROGRESS_STORAGE_KEY,
+  getStoredStudyProgress,
+  setIslandsCache,
+} from '../features/study/studyVoyage';
 
 const IslandsContext = createContext({
   islands: [],
@@ -47,6 +52,12 @@ export function IslandsProvider({ children }) {
         if (!active) return;
         const normalized = Array.isArray(raw) ? raw.map(normalizeIsland) : [];
         setIslandsCache(normalized);
+        try {
+          // Island topology can change (for example, removing empty islands), so
+          // re-normalize cached progress against the latest islands immediately.
+          const normalizedProgress = getStoredStudyProgress();
+          localStorage.setItem(STUDY_PROGRESS_STORAGE_KEY, JSON.stringify(normalizedProgress));
+        } catch {}
         setIslands(normalized);
       })
       .catch((e) => {

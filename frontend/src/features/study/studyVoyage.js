@@ -77,13 +77,21 @@ const computeStars = (island, islandProgress) => {
   return phraseStars;
 };
 
+const hasPlayableLevels = (island) => Array.isArray(island?.levels) && island.levels.length > 0;
+
 const recomputeUnlockedIslands = (progress) => {
   const unlocked = [];
-  STUDY_ISLANDS.forEach((island, index) => {
-    if (index === 0) { unlocked.push(island.id); return; }
-    const prevIsland = STUDY_ISLANDS[index - 1];
-    if (isIslandCompleted(progress, prevIsland.id)) unlocked.push(island.id);
+  let previousGateCompleted = true;
+
+  STUDY_ISLANDS.forEach((island) => {
+    if (previousGateCompleted) {
+      unlocked.push(island.id);
+    }
+
+    if (!hasPlayableLevels(island)) return;
+    previousGateCompleted = previousGateCompleted && isIslandCompleted(progress, island.id);
   });
+
   return unlocked;
 };
 
@@ -99,6 +107,28 @@ const computeXpFromProgress = (progress) =>
 const normalizeV2Progress = (raw) => {
   const base = buildBaseProgress();
   const merged = { ...base, ...raw, islands: { ...base.islands } };
+
+  // Migrate old alphabet-chapter-1..4 progress into merged 'alphabet' island
+  const OLD_ALPHABET_IDS = ['alphabet-chapter-1', 'alphabet-chapter-2', 'alphabet-chapter-3', 'alphabet-chapter-4'];
+  const alphabetIsland = STUDY_ISLANDS.find(i => i.id === 'alphabet');
+  if (alphabetIsland && raw?.islands) {
+    const migratedLevelIds = [];
+    let migrationNeeded = false;
+    OLD_ALPHABET_IDS.forEach(oldId => {
+      const oldProgress = raw.islands[oldId];
+      if (oldProgress?.completedLevelIds?.length > 0) {
+        migrationNeeded = true;
+        migratedLevelIds.push(...oldProgress.completedLevelIds);
+      }
+    });
+    if (migrationNeeded) {
+      const existingAlphabet = raw.islands['alphabet']?.completedLevelIds || [];
+      const allCompleted = unique([...existingAlphabet, ...migratedLevelIds]);
+      if (!raw.islands['alphabet']) raw.islands['alphabet'] = {};
+      raw.islands['alphabet'].completedLevelIds = allCompleted;
+      raw.islands['alphabet'].introSeen = true;
+    }
+  }
 
   STUDY_ISLANDS.forEach((island) => {
     const rawIsland = raw?.islands?.[island.id] || {};
@@ -197,6 +227,24 @@ export const resetStudyProgress = () => {
   return initial;
 };
 
+export const unlockAllProgress = () => {
+  const progress = buildBaseProgress();
+  STUDY_ISLANDS.forEach((island) => {
+    const allLevelIds = island.levels.map((l) => l.id);
+    progress.islands[island.id] = {
+      completedLevelIds: allLevelIds,
+      introSeen: true,
+      stars: allLevelIds.length,
+    };
+  });
+  progress.unlockedIslandIds = STUDY_ISLANDS.map((i) => i.id);
+  progress.totalXp = computeXpFromProgress(progress);
+  progress.updatedAt = new Date().toISOString();
+  const final = syncLegacyFields(progress);
+  saveStudyProgress(final);
+  return final;
+};
+
 export const getIslandById = (islandId) => STUDY_ISLANDS.find((island) => island.id === islandId);
 
 export const getIslandProgress = (progress, islandId) =>
@@ -207,7 +255,7 @@ export const isIslandUnlocked = (progress, islandId) =>
 
 export const isIslandCompleted = (progress, islandId) => {
   const island = getIslandById(islandId);
-  if (!island) return false;
+  if (!island || island.levels.length === 0) return false;
   const islandProgress = getIslandProgress(progress, islandId);
   return island.levels.every((level) => islandProgress.completedLevelIds.includes(level.id));
 };
@@ -289,3 +337,13 @@ export const getVoyageStats = (progress) => {
   };
 };
 
+export const isBossLevel = (levelIndex, totalLevels) =>
+  totalLevels > 0 && levelIndex === totalLevels - 1;
+
+export const getLevelDifficultyZone = (levelIndex, totalLevels) => {
+  if (totalLevels <= 0) return 'Easy';
+  const pct = levelIndex / totalLevels;
+  if (pct < 0.33) return 'Beginner';
+  if (pct < 0.66) return 'Easy';
+  return 'Medium';
+};

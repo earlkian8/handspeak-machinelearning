@@ -13,6 +13,7 @@ import {
   isIslandUnlocked,
   isLevelCompleted,
   completeIslandLevel,
+  isBossLevel,
 } from './studyVoyage';
 import { useIslands } from '../../contexts/IslandsContext';
 
@@ -57,6 +58,19 @@ export default function StudySession() {
   const island = getIslandById(islandId);
   const phraseLevel = island?.levels.find((level) => level.id === levelId) || null;
   const activeLevel = phraseLevel;
+  const phraseIndex = island?.levels.findIndex((level) => level.id === levelId) ?? -1;
+  const isBoss = island ? isBossLevel(phraseIndex, island.levels.length) : false;
+  const bossInfo = island?.boss || null;
+  const [showBossIntro, setShowBossIntro] = useState(false);
+
+  // Boss intro overlay
+  useEffect(() => {
+    if (isBoss && activeLevel) {
+      setShowBossIntro(true);
+      const t = setTimeout(() => setShowBossIntro(false), 1500);
+      return () => clearTimeout(t);
+    }
+  }, [isBoss, activeLevel?.id]);
 
   useEffect(() => {
     let active = true;
@@ -97,7 +111,6 @@ export default function StudySession() {
   }
 
   const islandUnlocked = isIslandUnlocked(progress, island.id);
-  const phraseIndex = island.levels.findIndex((level) => level.id === levelId);
   const phraseUnlocked = phraseIndex === 0 || isLevelCompleted(progress, island.id, island.levels[phraseIndex - 1]?.id);
   const levelUnlocked = islandUnlocked && phraseUnlocked;
   const alreadyCompleted = isLevelCompleted(progress, island.id, activeLevel.id);
@@ -340,25 +353,106 @@ export default function StudySession() {
         <div style={{
           position: 'absolute', inset: 0, zIndex: 20,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          background: 'rgba(2,10,28,0.75)', backdropFilter: 'blur(4px)',
-          animation: 'fade-in 0.2s ease-out',
+          background: isBoss ? 'rgba(15,5,0,0.85)' : 'rgba(2,10,28,0.82)', backdropFilter: 'blur(6px)',
+          animation: 'fade-in 0.3s ease-out',
         }}>
-          <div style={{ textAlign: 'center', animation: 'pop-in 0.35s cubic-bezier(0.34,1.56,0.64,1)' }}>
+          <div style={{ textAlign: 'center', animation: 'pop-in 0.4s cubic-bezier(0.34,1.56,0.64,1)', maxWidth: 380, padding: '0 20px' }}>
+            {/* Animated glow ring */}
             <div style={{
-              width: 90, height: 90, borderRadius: '50%',
-              background: 'linear-gradient(135deg,#34d399,#22d3ee)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              margin: '0 auto 18px',
-              boxShadow: '0 8px 32px rgba(52,211,153,0.55)',
+              position: 'relative', width: 110, height: 110, margin: '0 auto 20px',
             }}>
-              <CheckCircle size={40} color="white" />
+              <div style={{
+                position: 'absolute', inset: -8, borderRadius: '50%',
+                border: `3px solid ${isBoss ? '#fbbf24' : '#34d399'}`,
+                opacity: 0.3, animation: 'ring-expand 1.2s ease-out forwards',
+              }} />
+              <div style={{
+                width: '100%', height: '100%', borderRadius: '50%',
+                background: isBoss ? 'linear-gradient(135deg,#fbbf24,#ef4444)' : 'linear-gradient(135deg,#34d399,#22d3ee)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                boxShadow: isBoss ? '0 0 40px rgba(251,191,36,0.5)' : '0 0 32px rgba(52,211,153,0.4)',
+              }}>
+                {isBoss
+                  ? <span style={{ fontSize: 44 }}>{bossInfo?.icon || '👑'}</span>
+                  : <CheckCircle size={48} color="white" />}
+              </div>
             </div>
-            <p style={{ fontSize: 28, fontWeight: 900, color: 'white', margin: '0 0 8px' }}>
-              Level Complete!
+
+            {/* Title */}
+            <p style={{
+              fontSize: isBoss ? 30 : 26, fontWeight: 900, color: 'white',
+              margin: '0 0 6px', textShadow: '0 2px 12px rgba(0,0,0,0.5)',
+            }}>
+              {isBoss ? '🏆 ISLAND CONQUERED!' : '✨ Level Complete!'}
             </p>
-            <p style={{ fontSize: 16, color: 'rgba(255,255,255,0.75)', margin: 0, fontWeight: 700 }}>
-              Moving to next level...
+
+            {/* Subtitle */}
+            <p style={{ fontSize: 15, color: 'rgba(255,255,255,0.7)', margin: '0 0 18px', fontWeight: 700, lineHeight: 1.5 }}>
+              {isBoss ? 'Amazing! You conquered the final challenge!' : `You mastered the sign for "${activeLevel?.label}"`}
             </p>
+
+            {/* XP Reward card */}
+            <div style={{
+              display: 'inline-flex', alignItems: 'center', gap: 10,
+              background: 'rgba(255,255,255,0.08)', border: '1.5px solid rgba(255,255,255,0.15)',
+              borderRadius: 16, padding: '10px 20px',
+              animation: 'slide-up 0.3s ease-out 0.2s both',
+            }}>
+              <div style={{
+                width: 34, height: 34, borderRadius: 10,
+                background: 'linear-gradient(135deg, #fbbf24, #f59e0b)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                boxShadow: '0 4px 12px rgba(251,191,36,0.3)',
+              }}>
+                <span style={{ fontSize: 16, fontWeight: 900, color: '#000' }}>⚡</span>
+              </div>
+              <div style={{ textAlign: 'left' }}>
+                <div style={{ fontSize: 10, fontWeight: 900, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.15em' }}>Reward</div>
+                <div style={{ fontSize: 18, fontWeight: 900, color: '#fbbf24' }}>+{activeLevel?.rewardXp || 5} XP</div>
+              </div>
+            </div>
+
+            {/* Moving to next text */}
+            <p style={{
+              fontSize: 12, color: 'rgba(255,255,255,0.45)', margin: '16px 0 0', fontWeight: 700,
+              animation: 'pulse-text 1.5s ease-in-out infinite',
+            }}>
+              {isBoss ? 'Returning to world map...' : 'Moving to next level...'}
+            </p>
+          </div>
+
+          {/* Sparkles/confetti for ALL levels */}
+          <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'hidden' }}>
+            {Array.from({ length: isBoss ? 40 : 16 }, (_, i) => (
+              <div key={i} style={{
+                position: 'absolute',
+                left: `${Math.random() * 100}%`,
+                top: '-10px',
+                width: 4 + Math.random() * (isBoss ? 8 : 4),
+                height: 4 + Math.random() * (isBoss ? 8 : 4),
+                borderRadius: Math.random() > 0.5 ? '50%' : '2px',
+                background: isBoss
+                  ? ['#fbbf24','#ef4444','#34d399','#60a5fa','#a855f7','#fb923c'][i % 6]
+                  : ['#34d399','#22d3ee','#60a5fa','#fbbf24'][i % 4],
+                animation: `confetti-fall ${1.5 + Math.random() * 2}s ease-out ${Math.random() * 0.6}s forwards`,
+              }} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Boss intro overlay */}
+      {showBossIntro && (
+        <div style={{
+          position: 'absolute', inset: 0, zIndex: 25,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(6px)',
+          animation: 'fade-in 0.3s ease',
+        }}>
+          <div style={{ textAlign: 'center', animation: 'boss-zoom 0.6s cubic-bezier(0.34,1.56,0.64,1)' }}>
+            <div style={{ fontSize: 48, marginBottom: 12 }}>{bossInfo?.icon || '🔥'}</div>
+            <div style={{ fontSize: 12, fontWeight: 900, color: '#fbbf24', letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 6 }}>Final Challenge</div>
+            <div style={{ fontSize: 32, fontWeight: 900, color: 'white' }}>{activeLevel?.label}</div>
           </div>
         </div>
       )}
@@ -405,7 +499,8 @@ export default function StudySession() {
           `}</style>
           <Camera ref={webcamRef} />
 
-          {/* DEBUG CONTROLS */}
+          {/* DEBUG CONTROLS - only in dev */}
+          {import.meta.env.DEV && import.meta.env.VITE_SHOW_DEBUG === 'true' && (
           <div style={{ position: 'absolute', top: 50, right: 16, zIndex: 50, display: 'flex', flexDirection: 'column', gap: 8 }}>
             <button onClick={async () => {
               isSubmittingRef.current = true;
@@ -442,6 +537,7 @@ export default function StudySession() {
               Test: Wrong Word
             </button>
           </div>
+          )}
 
 
           {/* recording hint */}
@@ -558,8 +654,8 @@ export default function StudySession() {
               borderRadius: 99, padding: '4px 14px',
               display: 'flex', alignItems: 'center', gap: 6,
             }}>
-              <span style={{ fontSize: 10, fontWeight: 900, color: '#34d399', textTransform: 'uppercase', letterSpacing: '0.18em' }}>
-                Practice
+              <span style={{ fontSize: 10, fontWeight: 900, color: isBoss ? '#fbbf24' : '#34d399', textTransform: 'uppercase', letterSpacing: '0.18em' }}>
+                {isBoss ? '🔥 Boss Level' : 'Practice'}
               </span>
             </div>
             <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.48)', fontWeight: 700 }}>
@@ -590,13 +686,36 @@ export default function StudySession() {
 
           {/* tip box */}
           <div style={{
-            background: 'rgba(59,130,246,0.15)', border: '1.5px solid rgba(96,165,250,0.35)',
-            borderRadius: 16, padding: '12px 14px',
-            fontSize: 13, color: '#93c5fd', lineHeight: 1.6, flexShrink: 0,
-            display: 'flex', gap: 8, alignItems: 'flex-start',
+            background: 'linear-gradient(135deg, rgba(14,116,144,0.34) 0%, rgba(37,99,235,0.26) 58%, rgba(30,64,175,0.22) 100%)',
+            border: '1.5px solid rgba(125,211,252,0.68)',
+            borderRadius: 16,
+            padding: '13px 14px',
+            fontSize: 13,
+            color: '#dbeafe',
+            lineHeight: 1.6,
+            flexShrink: 0,
+            display: 'flex',
+            gap: 10,
+            alignItems: 'flex-start',
+            boxShadow: '0 10px 24px rgba(2, 132, 199, 0.2), inset 0 1px 0 rgba(224, 242, 254, 0.3)',
           }}>
-            <Lightbulb size={15} color="#93c5fd" style={{ flexShrink: 0, marginTop: 1 }} />
-            <span><strong>Tip:</strong> {panelTip}</span>
+            <div style={{
+              width: 22,
+              height: 22,
+              borderRadius: '50%',
+              background: 'rgba(186,230,253,0.2)',
+              border: '1px solid rgba(186,230,253,0.6)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+              marginTop: 2,
+            }}>
+              <Lightbulb size={13} color="#bae6fd" />
+            </div>
+            <span>
+              <strong style={{ color: '#e0f2fe', letterSpacing: '0.03em' }}>Pro Tip:</strong> {panelTip}
+            </span>
           </div>
 
           <div style={{
@@ -715,6 +834,23 @@ export default function StudySession() {
         @keyframes fade-in { 0%{opacity:0} 100%{opacity:1} }
         @keyframes pop-in { 0%{transform:scale(0.7);opacity:0} 100%{transform:scale(1);opacity:1} }
         @keyframes modal-enter { 0%{opacity:0;transform:scale(0.92) translateY(20px)} 100%{opacity:1;transform:scale(1) translateY(0)} }
+        @keyframes boss-zoom { 0%{transform:scale(3);opacity:0} 100%{transform:scale(1);opacity:1} }
+        @keyframes confetti-fall {
+          0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+          100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+        }
+        @keyframes ring-expand {
+          0% { transform: scale(0.5); opacity: 0.6; }
+          100% { transform: scale(1.3); opacity: 0; }
+        }
+        @keyframes slide-up {
+          0% { transform: translateY(12px); opacity: 0; }
+          100% { transform: translateY(0); opacity: 1; }
+        }
+        @keyframes pulse-text {
+          0%, 100% { opacity: 0.45; }
+          50% { opacity: 0.8; }
+        }
       `}</style>
     </div>
   );

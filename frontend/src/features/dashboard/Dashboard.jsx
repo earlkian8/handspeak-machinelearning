@@ -16,13 +16,18 @@ const Particle = ({ x, y, size, delay, opacity }) => (
   }} />
 );
 
+const toDiveLabel = (value = '') => value
+  .replace(/\bCaptain\b/g, 'Diver')
+  .replace(/\bIslands\b/g, 'Dives')
+  .replace(/\bIsland\b/g, 'Dive');
+
 export default function Dashboard({ user }) {
   const navigate = useNavigate();
   const { islands, getIslandById } = useIslands();
   const profile = user || JSON.parse(localStorage.getItem('handspeak_user') || '{}');
-  const displayName = profile.nickname || profile.first_name || profile.email?.split('@')[0] || 'Captain';
+  const displayName = profile.nickname || profile.first_name || profile.email?.split('@')[0] || 'Diver';
   const fullName = [profile.first_name, profile.last_name].filter(Boolean).join(' ') || displayName;
-  const initials = [profile.first_name?.[0], profile.last_name?.[0]].filter(Boolean).join('').toUpperCase() || displayName[0]?.toUpperCase() || 'C';
+  const initials = [profile.first_name?.[0], profile.last_name?.[0]].filter(Boolean).join('').toUpperCase() || displayName[0]?.toUpperCase() || 'D';
 
   const [progress, setProgress] = useState(() => getStoredStudyProgress());
 
@@ -132,7 +137,7 @@ export default function Dashboard({ user }) {
             textShadow: '0 2px 20px rgba(0,0,0,0.4)',
             letterSpacing: '-0.02em', lineHeight: 1.15,
           }}>
-            Where to next, Captain?
+            Where to next, Diver?
           </h1>
         </div>
 
@@ -142,7 +147,7 @@ export default function Dashboard({ user }) {
           marginBottom: 44,
         }}>
           {[
-            { icon: <Trophy size={16} color="#fbbf24" />, label: 'Islands Cleared', value: `${stats.completedIslands}/${stats.totalIslands}`, accent: '#fbbf24' },
+            { icon: <Trophy size={16} color="#fbbf24" />, label: 'Dives Cleared', value: `${stats.completedIslands}/${stats.totalIslands}`, accent: '#fbbf24' },
             { icon: <BookOpen size={16} color="#34d399" />, label: 'Phrase Levels', value: `${stats.completedPhraseLevels}/${stats.totalPhraseLevels}`, accent: '#34d399' },
             { icon: <TrendingUp size={16} color="#60a5fa" />, label: 'Player Level', value: `Lv. ${stats.playerLevel}`, accent: '#60a5fa' },
           ].map((s, i) => (
@@ -176,13 +181,13 @@ export default function Dashboard({ user }) {
             </div>
             <div>
               <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.55)' }}>Your Journey</div>
-              <div style={{ fontSize: 22, fontWeight: 900, color: 'white' }}>Continue to the Islands</div>
+              <div style={{ fontSize: 22, fontWeight: 900, color: 'white' }}>Continue the Dive</div>
             </div>
           </div>
 
           <p style={{ margin: 0, fontSize: 14.5, color: 'rgba(255,255,255,0.78)', lineHeight: 1.6 }}>
-            Every island has three modes — <strong>Learn</strong> the signs, <strong>Drill</strong> them for recall,
-            and <strong>Converse</strong> with NPC prompts. New to HandSpeak? Start at Island 1.
+            Every dive has three modes — <strong>Learn</strong> the signs, <strong>Drill</strong> them for recall,
+            and <strong>Converse</strong> with NPC prompts. New to HandSpeak? Start at Dive 1.
           </p>
 
           {(() => {
@@ -196,7 +201,7 @@ export default function Dashboard({ user }) {
                 </div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 11, fontWeight: 900, color: 'rgba(255,255,255,0.55)', letterSpacing: '0.14em', textTransform: 'uppercase' }}>Next up</div>
-                  <div style={{ fontSize: 15, fontWeight: 900, color: 'white' }}>{currentIsland.title}</div>
+                  <div style={{ fontSize: 15, fontWeight: 900, color: 'white' }}>{toDiveLabel(currentIsland.title)}</div>
                 </div>
               </div>
             );
@@ -215,7 +220,7 @@ export default function Dashboard({ user }) {
               onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; }}
               onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; }}
             >
-              Enter the Islands <ArrowRight size={17} />
+              Start Diving <ArrowRight size={17} />
             </button>
             <button onClick={() => navigate('/practice')}
               style={{
@@ -248,11 +253,11 @@ export default function Dashboard({ user }) {
             {islands.slice(0,stats.completedIslands).map(island => (
               <div key={island.id} style={{ display:'flex', alignItems:'center', gap:5, background:'rgba(52,211,153,0.15)', border:'1px solid rgba(52,211,153,0.4)', borderRadius:99, padding:'4px 12px' }}>
                 <Star size={11} fill="#34d399" color="#34d399" />
-                <span style={{ fontSize:12, fontWeight:800, color:'#34d399' }}>{island.title}</span>
+                <span style={{ fontSize:12, fontWeight:800, color:'#34d399' }}>{toDiveLabel(island.title)}</span>
               </div>
             ))}
             {stats.completedIslands === 0 && (
-              <span style={{ fontSize:13, color:'rgba(255,255,255,0.5)', fontWeight:700 }}>Start exploring to earn badges!</span>
+              <span style={{ fontSize:13, color:'rgba(255,255,255,0.5)', fontWeight:700 }}>Start diving to earn badges!</span>
             )}
           </div>
         )}
