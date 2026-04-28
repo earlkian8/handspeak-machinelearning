@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 
 const INTRO_KEY = (featureKey) => `handspeak_intro_seen_${featureKey}`;
 
@@ -11,10 +11,6 @@ export function markIntroSeen(featureKey) {
 }
 
 export default function FeatureIntroModal({ featureKey, title, subtitle, Icon, accentColor = '#67e8f9', steps, onDismiss }) {
-  const [visible] = useState(() => !isIntroSeen(featureKey));
-
-  if (!visible) return null;
-
   const handleDismiss = () => {
     markIntroSeen(featureKey);
     onDismiss?.();

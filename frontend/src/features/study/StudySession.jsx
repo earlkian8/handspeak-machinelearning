@@ -791,6 +791,23 @@ export default function StudySession() {
           .ss-panel { width: 100% !important; max-height: 50vh; }
         }
       `}</style>
+
+      <button
+        onClick={() => setShowIntro(true)}
+        title="How to use Level"
+        style={{
+          position: 'fixed', bottom: 20, right: 20, zIndex: 100,
+          width: 36, height: 36, borderRadius: '50%',
+          background: 'rgba(251,191,36,0.15)', border: '1.5px solid rgba(251,191,36,0.4)',
+          color: '#fbbf24', fontSize: 16, fontWeight: 900, cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontFamily: "'Nunito',sans-serif",
+          boxShadow: '0 2px 12px rgba(0,0,0,0.4)',
+          transition: 'background 0.15s ease, transform 0.15s ease',
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(251,191,36,0.28)'; e.currentTarget.style.transform = 'scale(1.1)'; }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(251,191,36,0.15)'; e.currentTarget.style.transform = 'scale(1)'; }}
+      >?</button>
     </div>
   );
 }

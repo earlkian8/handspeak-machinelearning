@@ -412,6 +412,23 @@ export default function WordPractice() {
         ))}
       </main>
 
+      <button
+        onClick={() => setShowIntro(true)}
+        title="How to use Drill"
+        style={{
+          position: 'fixed', bottom: 20, right: 20, zIndex: 100,
+          width: 36, height: 36, borderRadius: '50%',
+          background: 'rgba(251,146,60,0.15)', border: '1.5px solid rgba(251,146,60,0.4)',
+          color: '#fb923c', fontSize: 16, fontWeight: 900, cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontFamily: "'Nunito',sans-serif",
+          boxShadow: '0 2px 12px rgba(0,0,0,0.4)',
+          transition: 'background 0.15s ease, transform 0.15s ease',
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(251,146,60,0.28)'; e.currentTarget.style.transform = 'scale(1.1)'; }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(251,146,60,0.15)'; e.currentTarget.style.transform = 'scale(1)'; }}
+      >?</button>
+
       <style>{`
         input::placeholder { color: rgba(255,255,255,0.45); }
       `}</style>
