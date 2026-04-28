@@ -15,9 +15,7 @@ import StudyIsland from './features/study/StudyIsland';
 import StudySession from './features/study/StudySession';
 import IslandsHub from './features/islands/IslandsHub';
 import IslandOverview from './features/islands/IslandOverview';
-import ChainSession from './features/islands/ChainSession';
-import ReplyQuestSession from './features/islands/ReplyQuestSession';
-import ConverseHub from './features/islands/ConverseHub';
+import Converse from './features/converse/Converse';
 import Settings from './features/settings/Settings';
 
 function App() {
@@ -76,9 +74,7 @@ function App() {
           {/* Unified Islands journey — Phase 1 */}
           <Route path="/islands" element={guard(<IslandsHub />)} />
           <Route path="/islands/:islandId" element={guard(<IslandOverview />)} />
-          <Route path="/islands/:islandId/converse" element={guard(<ConverseHub />)} />
-          <Route path="/islands/:islandId/converse/reply-quest" element={guard(<ReplyQuestSession />)} />
-          <Route path="/islands/:islandId/converse/chains" element={guard(<ChainSession />)} />
+          <Route path="/converse" element={guard(<Converse />)} />
 
           {/* Learn mode (reuses existing Study Voyage screens under the Islands journey) */}
           <Route path="/study" element={<Navigate to="/islands" replace />} />

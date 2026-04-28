@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, BookOpen, Target, MessageCircle, Lightbulb, Star, Lock, Trophy, Flame, Shield, ChevronRight, Zap } from 'lucide-react';
+import { ArrowLeft, BookOpen, Target, Lightbulb, Star, Lock, Trophy, Flame, Shield, ChevronRight, Zap } from 'lucide-react';
 import {
   getIslandProgress,
   getStoredStudyProgress,
@@ -199,7 +199,6 @@ export default function IslandOverview() {
   const { islandId } = useParams();
   const { getIslandById } = useIslands();
   const [progress, setProgress] = useState(() => getStoredStudyProgress());
-  const [conversationStats, setConversationStats] = useState(null);
   const [tutorialEnabled, setTutorialEnabled] = useState(() => !isTutorialSkipped());
 
   const handleTutorialToggle = () => {
@@ -216,8 +215,6 @@ export default function IslandOverview() {
     loadStudyProgress().then((normalized) => {
       if (!active) return;
       setProgress(normalized);
-      const islandStats = normalized?.conversation?.islands?.[islandId];
-      if (islandStats) setConversationStats(islandStats);
     });
     return () => { active = false; };
   }, [islandId]);
@@ -254,8 +251,6 @@ export default function IslandOverview() {
   // Determine mode statuses
   const learnStatus = !unlocked ? 'locked' : !island.hasLearn ? 'locked' : completedCount === totalCount ? 'completed' : 'in-progress';
   const drillStatus = !unlocked ? 'locked' : (!island.hasDrill && !isAlphabet) ? 'locked' : 'in-progress';
-  const converseStatus = !unlocked ? 'locked' : !island.hasConverse ? 'coming-soon' : 'in-progress';
-
   const handleLearnClick = () => {
     if (!island.hasLearn) return;
     navigate(`/study/${islandId}`);
@@ -447,30 +442,6 @@ export default function IslandOverview() {
             onClick={() => navigate('/practice')}
           />
 
-          {!isAlphabet && (
-            <QuestCard
-              icon={<MessageCircle size={22} color={island.hasConverse ? '#34d399' : 'rgba(255,255,255,0.3)'} />}
-              accentColor={island.hasConverse ? '#34d399' : 'rgba(255,255,255,0.3)'}
-              questLabel="Converse Mission"
-              title="Converse"
-              description={
-                island.hasConverse
-                  ? 'Reply to NPC prompts in real conversations. Where signing becomes a real skill!'
-                  : 'Reply Quest unlocks on this island in a future phase.'
-              }
-              progress={
-                island.hasConverse
-                  ? conversationStats
-                    ? `${conversationStats.prompts_correct || 0} correct · ${conversationStats.sessions_completed || 0} sessions`
-                    : 'Ready to start'
-                  : 'Coming soon'
-              }
-              reward={island.hasConverse ? 'Mastery XP' : null}
-              status={converseStatus}
-              disabled={!unlocked || !island.hasConverse}
-              onClick={() => island.hasConverse && navigate(`/islands/${islandId}/converse`)}
-            />
-          )}
         </div>
 
         {/* ── Tutorial settings ── */}

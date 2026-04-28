@@ -208,6 +208,17 @@ export default function Dashboard({ user }) {
           })()}
 
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <button onClick={() => navigate('/converse')}
+              style={{
+                flex: '0 0 auto', padding: '16px 20px', borderRadius: 18, border: '1.5px solid rgba(255,255,255,0.22)',
+                background: 'rgba(255,255,255,0.1)', color: 'white',
+                fontSize: 14, fontWeight: 900, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                fontFamily: "'Nunito',sans-serif",
+              }}
+            >
+              <MessageCircle size={15} /> Converse
+            </button>
             <button onClick={() => navigate('/islands')}
               style={{
                 flex: '1 1 260px', padding: '16px 22px', borderRadius: 18, border: 'none',
