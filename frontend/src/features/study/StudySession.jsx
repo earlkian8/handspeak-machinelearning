@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import YouTubeTutorial from '../../components/YouTubeTutorial';
 import { useParams, useNavigate } from 'react-router-dom';
-import { X, Circle, ArrowRight, CheckCircle, Lock, Star, Lightbulb, Waves } from 'lucide-react';
+import { X, Circle, ArrowRight, CheckCircle, Lock, Waves, Zap, BookOpen } from 'lucide-react';
+import TipBox from '../../components/TipBox';
 import Camera from '../../components/Camera';
 import GestureProcessingModal from '../../components/GestureProcessingModal';
 import { postJson } from '../../lib/api';
@@ -45,6 +46,10 @@ export default function StudySession() {
   const [latestResult, setLatestResult] = useState(null);
   const [matchStreak, setMatchStreak] = useState(0);
   const [capturedFrames, setCapturedFrames] = useState(0);
+  const [levelStreak, setLevelStreak] = useState(() => {
+    try { return parseInt(sessionStorage.getItem('ss_level_streak') || '0', 10); } catch { return 0; }
+  });
+  const levelStreakRef = useRef(levelStreak);
   const webcamRef = useRef(null);
   const frameBufferRef = useRef([]);
   const isSubmittingRef = useRef(false);
@@ -206,6 +211,10 @@ export default function StudySession() {
         const similarity = Number(response.similarity ?? 0).toFixed(3);
         const bestMatch = String(response.best_match || 'unknown').toUpperCase();
         setMatchStreak(0);
+        // Wrong answer — break the level streak
+        levelStreakRef.current = 0;
+        setLevelStreak(0);
+        try { sessionStorage.setItem('ss_level_streak', '0'); } catch {}
         setStatus(`Wrong gesture. Closest: ${bestMatch} · Similarity ${similarity}`);
         finishProcessingFeedback(false, `Wrong gesture. Closest: ${bestMatch} · Similarity ${similarity}`);
       }
@@ -332,6 +341,12 @@ export default function StudySession() {
     saveStudyProgress(updated);
     setShowSuccess(true);
 
+    // Increment level streak (no wrong answers this level)
+    const next = levelStreakRef.current + 1;
+    levelStreakRef.current = next;
+    setLevelStreak(next);
+    try { sessionStorage.setItem('ss_level_streak', String(next)); } catch {}
+
     setTimeout(() => {
       setShowSuccess(false);
       const nextLevel = island.levels[phraseIndex + 1];
@@ -441,62 +456,101 @@ export default function StudySession() {
         </div>
       )}
 
-      {/* Boss intro overlay */}
+      {/* Boss intro overlay - MENACING */}
       {showBossIntro && (
         <div style={{
           position: 'absolute', inset: 0, zIndex: 25,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(6px)',
-          animation: 'fade-in 0.3s ease',
+          background: 'radial-gradient(ellipse at center, rgba(40,0,0,0.97) 0%, rgba(0,0,0,0.99) 70%)',
+          backdropFilter: 'blur(10px)',
+          animation: 'boss-fade-in 0.25s ease',
         }}>
-          <div style={{ textAlign: 'center', animation: 'boss-zoom 0.6s cubic-bezier(0.34,1.56,0.64,1)' }}>
-            <div style={{ fontSize: 48, marginBottom: 12 }}>{bossInfo?.icon || '🔥'}</div>
-            <div style={{ fontSize: 12, fontWeight: 900, color: '#fbbf24', letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 6 }}>Final Challenge</div>
-            <div style={{ fontSize: 32, fontWeight: 900, color: 'white' }}>{activeLevel?.label}</div>
+          {/* Red vignette pulse */}
+          <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at center, transparent 40%, rgba(220,0,0,0.18) 100%)', animation: 'boss-vignette 0.8s ease-in-out infinite alternate', pointerEvents: 'none' }} />
+
+          {/* Lightning bolts */}
+          {['15%','80%','50%'].map((left, i) => (
+            <div key={i} style={{ position: 'absolute', top: 0, left, fontSize: 28, animation: `boss-lightning ${0.4 + i * 0.15}s ease-out ${i * 0.12}s both`, opacity: 0, pointerEvents: 'none' }}>⚡</div>
+          ))}
+
+          <div style={{ textAlign: 'center', animation: 'boss-slam 0.5s cubic-bezier(0.22,1,0.36,1)', position: 'relative', zIndex: 2 }}>
+            {/* Warning label */}
+            <div style={{ fontSize: 10, fontWeight: 900, color: '#ef4444', letterSpacing: '0.4em', textTransform: 'uppercase', marginBottom: 16, animation: 'boss-flicker 0.15s ease-in-out infinite alternate' }}>
+              ⚠ FINAL CHALLENGE ⚠
+            </div>
+
+            {/* Boss icon - BIG */}
+            <div style={{ fontSize: 88, lineHeight: 1, marginBottom: 16, filter: 'drop-shadow(0 0 24px rgba(239,68,68,0.9))', animation: 'boss-icon-shake 0.18s ease-in-out infinite alternate' }}>
+              {bossInfo?.icon || '💀'}
+            </div>
+
+            {/* Boss name */}
+            <div style={{ fontSize: 38, fontWeight: 900, color: 'white', letterSpacing: '-0.02em', textShadow: '0 0 40px rgba(239,68,68,0.8), 0 4px 20px rgba(0,0,0,0.8)', marginBottom: 8 }}>
+              {activeLevel?.label}
+            </div>
+            <div style={{ fontSize: 13, color: 'rgba(239,68,68,0.9)', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+              Prove yourself. No mercy.
+            </div>
+
+            {/* HP-style bar */}
+            <div style={{ marginTop: 20, width: 220, height: 8, borderRadius: 99, background: 'rgba(255,255,255,0.1)', overflow: 'hidden', margin: '20px auto 0' }}>
+              <div style={{ height: '100%', width: '100%', borderRadius: 99, background: 'linear-gradient(90deg, #ef4444, #dc2626)', boxShadow: '0 0 12px rgba(239,68,68,0.8)', animation: 'boss-bar-drain 1.4s ease-out forwards' }} />
+            </div>
+            <div style={{ fontSize: 9, color: 'rgba(239,68,68,0.6)', fontWeight: 900, letterSpacing: '0.2em', textTransform: 'uppercase', marginTop: 6 }}>BOSS HP</div>
           </div>
         </div>
       )}
 
-      <div
-        className="flex flex-col md:flex-row w-full max-w-[960px] max-h-[calc(100vh-40px)] overflow-y-auto md:overflow-hidden"
-        style={{
-        position: 'relative', background: '#0d2240', borderRadius: 28,
-        boxShadow: '0 24px 80px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.08)',
-        animation: 'modal-enter 0.3s ease-out',
-      }}>
+      <div className="ss-modal" style={{ position: 'relative', display: 'flex', flexDirection: 'column', width: '100%', maxWidth: 1140, maxHeight: 'calc(100vh - 32px)', borderRadius: 24, overflow: 'hidden', background: 'linear-gradient(165deg, #0c1f3d 0%, #081428 100%)', boxShadow: '0 32px 100px rgba(0,0,0,0.8), 0 0 0 1px rgba(52,211,153,0.1)', animation: 'ss-enter 0.35s ease-out' }}>
 
-        {/* close button */}
-        <button onClick={handleClose}
-          style={{
-            position: 'absolute', top: 16, right: 16, zIndex: 10,
-            width: 42, height: 42, borderRadius: '50%',
-            background: 'rgba(255,255,255,0.15)', border: '1.5px solid rgba(255,255,255,0.25)',
-            backdropFilter: 'blur(8px)', cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            transition: 'all 0.2s',
-          }}
-          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.45)'; e.currentTarget.style.transform = 'scale(1.1)'; }}
-          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.15)'; e.currentTarget.style.transform = 'scale(1)'; }}
-        >
-          <X size={18} color="white" />
-        </button>
+        {/* Top bar */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 20px', background: isBoss ? 'rgba(30,0,0,0.5)' : 'rgba(0,0,0,0.25)', borderBottom: `1px solid ${isBoss ? 'rgba(239,68,68,0.2)' : 'rgba(255,255,255,0.06)'}`, flexShrink: 0 }}>
+          {/* Left: Island name + level label */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <BookOpen size={13} color={isBoss ? '#ef4444' : '#34d399'} />
+              <span style={{ fontSize: 10, fontWeight: 900, color: isBoss ? '#ef4444' : '#34d399', textTransform: 'uppercase', letterSpacing: '0.14em', whiteSpace: 'nowrap' }}>
+                {isBoss ? '💀 Boss Level' : island.title}
+              </span>
+            </div>
+            {/* Level progress bar */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div style={{ width: 100, height: 4, borderRadius: 99, background: 'rgba(255,255,255,0.08)', overflow: 'hidden', flexShrink: 0 }}>
+                <div style={{ height: '100%', borderRadius: 99, width: `${(activeLevel.order / island.levels.length) * 100}%`, background: isBoss ? 'linear-gradient(90deg,#ef4444,#dc2626)' : 'linear-gradient(90deg,#34d399,#22d3ee)', transition: 'width 0.5s ease', boxShadow: isBoss ? '0 0 6px rgba(239,68,68,0.5)' : '0 0 6px rgba(52,211,153,0.4)' }} />
+              </div>
+              <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', fontWeight: 700, whiteSpace: 'nowrap' }}>Level {activeLevel.order} / {island.levels.length}</span>
+            </div>
+          </div>
 
-        {/* ── camera panel ── */}
-        <div
-          className="flex-1 relative overflow-hidden min-h-[500px]"
-          style={{
-            background: '#050d18',
-            borderRadius: '28px 28px 0 0',
-          }}
-        >
-          {/* md radius overrides */}
-          <style>{`
-            @media (min-width: 768px) {
-              .flex-1.relative {
-                border-radius: 28px 0 0 28px !important;
-              }
-            }
-          `}</style>
+          {/* Center: level streak flame */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
+            <span style={{ fontSize: 9, fontWeight: 900, color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.18em' }}>Level Streak</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, position: 'relative' }}>
+              {levelStreak >= 2 && (
+                <span style={{ fontSize: 18, animation: 'streak-flame 0.6s ease-in-out infinite alternate', filter: 'drop-shadow(0 0 6px rgba(251,146,60,0.9))' }}>🔥</span>
+              )}
+              <span style={{
+                fontSize: levelStreak >= 2 ? 22 : 18,
+                fontWeight: 900,
+                color: levelStreak >= 5 ? '#ef4444' : levelStreak >= 3 ? '#f97316' : levelStreak >= 2 ? '#fbbf24' : 'rgba(255,255,255,0.35)',
+                textShadow: levelStreak >= 2 ? `0 0 ${8 + levelStreak * 2}px ${levelStreak >= 5 ? 'rgba(239,68,68,0.8)' : levelStreak >= 3 ? 'rgba(249,115,22,0.8)' : 'rgba(251,191,36,0.7)'}` : 'none',
+                animation: levelStreak >= 2 ? 'streak-pulse 0.8s ease-in-out infinite alternate' : undefined,
+                transition: 'all 0.3s ease',
+                lineHeight: 1,
+              }}>{levelStreak}</span>
+              {levelStreak >= 2 && (
+                <span style={{ fontSize: 18, animation: 'streak-flame 0.6s ease-in-out infinite alternate', filter: 'drop-shadow(0 0 6px rgba(251,146,60,0.9))', animationDelay: '0.3s' }}>🔥</span>
+              )}
+            </div>
+          </div>
+          <button onClick={handleClose} style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <X size={16} color="white" />
+          </button>
+        </div>
+
+        <div className="ss-body" style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+        {/* camera panel */}
+        <div style={{ flex: 1, position: 'relative', background: '#040c18', minHeight: 420 }}>
           <Camera ref={webcamRef} />
 
           {/* DEBUG CONTROLS - only in dev */}
@@ -540,183 +594,48 @@ export default function StudySession() {
           )}
 
 
-          {/* recording hint */}
-          <div style={{
-            position: 'absolute', top: 16, left: 16,
-            background: recording ? 'rgba(239,68,68,0.9)' : 'rgba(0,0,0,0.55)',
-            backdropFilter: 'blur(8px)', borderRadius: 99,
-            padding: '6px 14px', display: 'flex', alignItems: 'center', gap: 6,
-            transition: 'background 0.3s',
-          }}>
-            <div style={{
-              width: 8, height: 8, borderRadius: '50%',
-              background: recording ? 'white' : '#ef4444',
-              animation: recording ? 'rec-blink 1s ease-in-out infinite' : undefined,
-            }} />
-            <span style={{ fontSize: 11, fontWeight: 900, color: 'white', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
-              {isCountingDown ? `Starting ${countdown}` : recording ? 'Recording' : readyToSubmit ? 'Ready to submit' : 'Camera'}
+          <div style={{ position: 'absolute', top: 14, left: 14, background: recording ? 'rgba(239,68,68,0.9)' : 'rgba(0,0,0,0.55)', backdropFilter: 'blur(8px)', borderRadius: 99, padding: '5px 12px', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div style={{ width: 7, height: 7, borderRadius: '50%', background: recording ? 'white' : '#ef4444', animation: recording ? 'ss-blink 1s ease-in-out infinite' : undefined }} />
+            <span style={{ fontSize: 10, fontWeight: 900, color: 'white', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+              {isCountingDown ? `Starting ${countdown}` : recording ? 'Recording' : readyToSubmit ? 'Ready' : 'Camera'}
             </span>
           </div>
 
           {isCountingDown && (
-            <div style={{
-              position: 'absolute',
-              inset: 0,
-              zIndex: 9,
-              background: 'rgba(2,10,28,0.45)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              pointerEvents: 'none',
-            }}>
-              <div style={{
-                width: 110,
-                height: 110,
-                borderRadius: '50%',
-                border: '2px solid rgba(255,255,255,0.3)',
-                background: 'rgba(0,0,0,0.45)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'white',
-                fontSize: 46,
-                fontWeight: 900,
-              }}>
-                {countdown}
-              </div>
+            <div style={{ position: 'absolute', inset: 0, zIndex: 9, background: 'rgba(2,10,28,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
+              <div style={{ width: 100, height: 100, borderRadius: '50%', border: '3px solid rgba(52,211,153,0.4)', background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#34d399', fontSize: 44, fontWeight: 900 }}>{countdown}</div>
             </div>
           )}
 
-          <div style={{ position: 'absolute', bottom: 28, left: 0, right: 0, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 12 }}>
-            <button onClick={handleRecordToggle}
-              disabled={isCountingDown || showSuccess}
-              style={{
-                width: 80, height: 80, borderRadius: '50%',
-                border: `5px solid ${recording ? '#ef4444' : 'rgba(255,255,255,0.9)'}`,
-                background: recording ? '#ef4444' : 'white',
-                cursor: isCountingDown || showSuccess ? 'not-allowed' : 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                boxShadow: recording ? '0 0 0 8px rgba(239,68,68,0.25), 0 6px 28px rgba(0,0,0,0.5)' : '0 6px 28px rgba(0,0,0,0.5)',
-                transition: 'all 0.25s cubic-bezier(0.34,1.56,0.64,1)',
-                opacity: isCountingDown || showSuccess ? 0.55 : 1,
-              }}
-            >
-              <Circle size={32} fill={recording ? 'white' : '#e63946'} color={recording ? 'white' : '#e63946'} />
+          <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '16px 0 20px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 14, background: 'linear-gradient(0deg, rgba(4,12,24,0.85) 0%, transparent 100%)' }}>
+            <button onClick={handleRecordToggle} disabled={isCountingDown || showSuccess} style={{ width: 68, height: 68, borderRadius: '50%', border: `4px solid ${recording ? '#ef4444' : 'rgba(255,255,255,0.8)'}`, background: recording ? '#ef4444' : 'white', cursor: isCountingDown || showSuccess ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: recording ? '0 0 0 6px rgba(239,68,68,0.2)' : '0 4px 20px rgba(0,0,0,0.4)', transition: 'all 0.25s cubic-bezier(0.34,1.56,0.64,1)', opacity: isCountingDown || showSuccess ? 0.5 : 1 }}>
+              <Circle size={26} fill={recording ? 'white' : '#e63946'} color={recording ? 'white' : '#e63946'} />
             </button>
-
             {readyToSubmit && !showSuccess && (
-              <button
-                onClick={() => verifyCurrentFrames()}
-                disabled={isSubmittingRef.current || isCountingDown}
-                style={{
-                  border: 'none',
-                  borderRadius: 12,
-                  padding: '12px 16px',
-                  minWidth: 92,
-                  cursor: isSubmittingRef.current || isCountingDown ? 'not-allowed' : 'pointer',
-                  background: 'linear-gradient(135deg,#34d399,#22d3ee)',
-                  color: '#064e3b',
-                  fontWeight: 900,
-                  fontSize: 13,
-                  opacity: isSubmittingRef.current || isCountingDown ? 0.6 : 1,
-                }}
-              >
-                Submit
+              <button onClick={() => verifyCurrentFrames()} disabled={isSubmittingRef.current || isCountingDown} style={{ border: 'none', borderRadius: 99, padding: '10px 20px', cursor: 'pointer', background: 'linear-gradient(135deg,#34d399,#22d3ee)', color: '#064e3b', fontWeight: 900, fontSize: 12, boxShadow: '0 4px 16px rgba(52,211,153,0.3)' }}>
+                <Zap size={13} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} /> Submit
               </button>
             )}
-          </div>
-
-          <div style={{
-            position: 'absolute', bottom: 122, left: '50%', transform: 'translateX(-50%)',
-            background: 'rgba(2,10,28,0.75)', border: '1px solid rgba(255,255,255,0.18)',
-            borderRadius: 10, padding: '6px 10px', color: 'white', fontSize: 12, fontWeight: 800,
-          }}>
-            Frames: {capturedFrames}/{minFramesForVerify}
+            <div style={{ position: 'absolute', top: -28, left: '50%', transform: 'translateX(-50%)', background: 'rgba(0,0,0,0.6)', borderRadius: 8, padding: '3px 10px', color: 'rgba(255,255,255,0.6)', fontSize: 11, fontWeight: 800, whiteSpace: 'nowrap' }}>
+              Frames: {capturedFrames}/{minFramesForVerify}
+            </div>
           </div>
         </div>
 
-        {/* ── info panel ── */}
-        <div 
-          className="w-full md:w-[380px]"
-          style={{
-          flexShrink: 0,
-          background: 'linear-gradient(180deg,#0f2a54 0%,#091a38 100%)',
-          display: 'flex', flexDirection: 'column',
-          padding: '32px 22px 20px', gap: 14, overflowY: 'auto',
-          borderLeft: '1px solid rgba(255,255,255,0.08)',
-        }}>
+        {/* info panel */}
+        <div className="ss-panel" style={{ width: 380, flexShrink: 0, background: 'linear-gradient(180deg,#0e2347 0%,#091832 100%)', display: 'flex', flexDirection: 'column', padding: '22px 20px 18px', gap: 12, overflowY: 'auto', borderLeft: '1px solid rgba(255,255,255,0.06)' }}>
 
-          {/* level indicator */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{
-              background: 'rgba(52,211,153,0.2)',
-              border: '1px solid rgba(52,211,153,0.4)',
-              borderRadius: 99, padding: '4px 14px',
-              display: 'flex', alignItems: 'center', gap: 6,
-            }}>
-              <span style={{ fontSize: 10, fontWeight: 900, color: isBoss ? '#fbbf24' : '#34d399', textTransform: 'uppercase', letterSpacing: '0.18em' }}>
-                {isBoss ? '🔥 Boss Level' : 'Practice'}
-              </span>
+          {/* Word card */}
+          <div style={{ background: 'linear-gradient(135deg, rgba(52,211,153,0.1), rgba(34,211,238,0.08))', border: '1px solid rgba(52,211,153,0.2)', borderRadius: 18, padding: '14px', textAlign: 'center' }}>
+            <div style={{ fontSize: panelTitle.length <= 3 ? 64 : panelTitle.length <= 6 ? 52 : panelTitle.length <= 10 ? 40 : 30, fontWeight: 900, lineHeight: 1.1, wordBreak: 'break-word', overflowWrap: 'anywhere', background: isBoss ? 'linear-gradient(135deg,#fbbf24,#f97316)' : 'linear-gradient(135deg,#34d399,#22d3ee)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
+              {panelTitle}
             </div>
-            <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.48)', fontWeight: 700 }}>
-              Level {activeLevel.order} / {island.levels.length}
-            </span>
+            <p style={{ margin: '6px 0 0', fontSize: 12, color: 'rgba(255,255,255,0.5)', fontWeight: 700 }}>{panelDescription}</p>
           </div>
-
-          {/* title */}
-          <div style={{
-            fontSize: 30, fontWeight: 900, color: 'white',
-            lineHeight: 1.2, textAlign: 'center',
-            textShadow: '0 2px 12px rgba(0,0,0,0.5)',
-            background: 'linear-gradient(135deg,#34d399,#22d3ee)',
-            WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text',
-          }}>
-            {panelTitle}
-          </div>
-
-          <div style={{ height: 1, background: 'rgba(255,255,255,0.08)', flexShrink: 0 }} />
 
           <YouTubeTutorial word={activeLevel.label} isLetter={isLetterTarget} />
 
-          {/* description */}
-          <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.82)', lineHeight: 1.65, margin: 0 }}>
-            {panelDescription}
-          </p>
-
-          {/* tip box */}
-          <div style={{
-            background: 'linear-gradient(135deg, rgba(14,116,144,0.34) 0%, rgba(37,99,235,0.26) 58%, rgba(30,64,175,0.22) 100%)',
-            border: '1.5px solid rgba(125,211,252,0.68)',
-            borderRadius: 16,
-            padding: '13px 14px',
-            fontSize: 13,
-            color: '#dbeafe',
-            lineHeight: 1.6,
-            flexShrink: 0,
-            display: 'flex',
-            gap: 10,
-            alignItems: 'flex-start',
-            boxShadow: '0 10px 24px rgba(2, 132, 199, 0.2), inset 0 1px 0 rgba(224, 242, 254, 0.3)',
-          }}>
-            <div style={{
-              width: 22,
-              height: 22,
-              borderRadius: '50%',
-              background: 'rgba(186,230,253,0.2)',
-              border: '1px solid rgba(186,230,253,0.6)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0,
-              marginTop: 2,
-            }}>
-              <Lightbulb size={13} color="#bae6fd" />
-            </div>
-            <span>
-              <strong style={{ color: '#e0f2fe', letterSpacing: '0.03em' }}>Pro Tip:</strong> {panelTip}
-            </span>
-          </div>
+          <TipBox tip={panelTip} />
 
           <div style={{
             borderRadius: 14,
@@ -820,6 +739,7 @@ export default function StudySession() {
           </button>
         </div>
       </div>
+      </div>
 
       <GestureProcessingModal
         open={showProcessingModal}
@@ -830,26 +750,27 @@ export default function StudySession() {
 
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&display=swap');
-        @keyframes rec-blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+        @keyframes ss-blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+        @keyframes ss-enter { 0%{opacity:0;transform:scale(0.94) translateY(16px)} 100%{opacity:1;transform:scale(1) translateY(0)} }
         @keyframes fade-in { 0%{opacity:0} 100%{opacity:1} }
         @keyframes pop-in { 0%{transform:scale(0.7);opacity:0} 100%{transform:scale(1);opacity:1} }
-        @keyframes modal-enter { 0%{opacity:0;transform:scale(0.92) translateY(20px)} 100%{opacity:1;transform:scale(1) translateY(0)} }
         @keyframes boss-zoom { 0%{transform:scale(3);opacity:0} 100%{transform:scale(1);opacity:1} }
-        @keyframes confetti-fall {
-          0% { transform: translateY(0) rotate(0deg); opacity: 1; }
-          100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
-        }
-        @keyframes ring-expand {
-          0% { transform: scale(0.5); opacity: 0.6; }
-          100% { transform: scale(1.3); opacity: 0; }
-        }
-        @keyframes slide-up {
-          0% { transform: translateY(12px); opacity: 0; }
-          100% { transform: translateY(0); opacity: 1; }
-        }
-        @keyframes pulse-text {
-          0%, 100% { opacity: 0.45; }
-          50% { opacity: 0.8; }
+        @keyframes boss-fade-in { 0%{opacity:0} 100%{opacity:1} }
+        @keyframes boss-slam { 0%{transform:scale(2.5) translateY(-40px);opacity:0} 60%{transform:scale(0.95) translateY(4px);opacity:1} 100%{transform:scale(1) translateY(0);opacity:1} }
+        @keyframes boss-icon-shake { 0%{transform:rotate(-4deg) scale(1.02)} 100%{transform:rotate(4deg) scale(0.98)} }
+        @keyframes boss-flicker { 0%{opacity:1} 100%{opacity:0.5} }
+        @keyframes boss-vignette { 0%{opacity:0.5} 100%{opacity:1} }
+        @keyframes boss-lightning { 0%{opacity:1;transform:translateY(-20px) scale(1.5)} 100%{opacity:0;transform:translateY(120px) scale(0.8)} }
+        @keyframes boss-bar-drain { 0%{width:100%} 100%{width:15%} }
+        @keyframes streak-flame { 0%{transform:scale(1) rotate(-5deg)} 100%{transform:scale(1.2) rotate(5deg)} }
+        @keyframes streak-pulse { 0%{transform:scale(1)} 100%{transform:scale(1.08)} }
+        @keyframes confetti-fall { 0%{transform:translateY(0) rotate(0deg);opacity:1} 100%{transform:translateY(100vh) rotate(720deg);opacity:0} }
+        @keyframes ring-expand { 0%{transform:scale(0.5);opacity:0.6} 100%{transform:scale(1.3);opacity:0} }
+        @keyframes slide-up { 0%{transform:translateY(12px);opacity:0} 100%{transform:translateY(0);opacity:1} }
+        @keyframes pulse-text { 0%,100%{opacity:0.45} 50%{opacity:0.8} }
+        @media (max-width: 768px) {
+          .ss-body { flex-direction: column !important; }
+          .ss-panel { width: 100% !important; max-height: 50vh; }
         }
       `}</style>
     </div>
