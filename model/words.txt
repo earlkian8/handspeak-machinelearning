@@ -1,36 +1,70 @@
 # ASL Vocabulary for dynamic Kaggle parquet model
 # Loaded by backend/data/asl_data.py
+# Words are ordered within each chapter (20 per chapter) from easiest to hardest.
+# Reordering within a chapter does NOT break saved progress (level IDs are word-based).
 
 ALL_SIGNS = [
-    "TV", "after", "airplane", "all", "alligator", "animal", "another", "any",
-    "apple", "arm", "aunt", "awake", "backyard", "bad", "balloon", "bath",
-    "because", "bed", "bedroom", "bee", "before", "beside", "better", "bird",
-    "black", "blow", "blue", "boat", "book", "boy", "brother", "brown", "bug",
-    "bye", "callonphone", "can", "car", "carrot", "cat", "cereal", "chair",
-    "cheek", "child", "chin", "chocolate", "clean", "close", "closet", "cloud",
-    "clown", "cow", "cowboy", "cry", "cut", "cute", "dad", "dance", "dirty",
-    "dog", "doll", "donkey", "down", "drawer", "drink", "drop", "dry", "dryer",
-    "duck", "ear", "elephant", "empty", "every", "eye", "face", "fall", "farm",
-    "fast", "feet", "find", "fine", "finger", "finish", "fireman", "first",
-    "fish", "flag", "flower", "food", "for", "frenchfries", "frog", "garbage",
-    "gift", "giraffe", "girl", "give", "glasswindow", "go", "goose", "grandma",
-    "grandpa", "grass", "green", "gum", "hair", "happy", "hat", "hate", "have",
-    "haveto", "head", "hear", "helicopter", "hello", "hen", "hesheit", "hide",
-    "high", "home", "horse", "hot", "hungry", "icecream", "if", "into",
-    "jacket", "jeans", "jump", "kiss", "kitty", "lamp", "later", "like",
-    "lion", "lips", "listen", "look", "loud", "mad", "make", "man", "many",
-    "milk", "minemy", "mitten", "mom", "moon", "morning", "mouse", "mouth",
-    "nap", "napkin", "night", "no", "noisy", "nose", "not", "now", "nuts",
-    "old", "on", "open", "orange", "outside", "owie", "owl", "pajamas", "pen",
-    "pencil", "penny", "person", "pig", "pizza", "please", "police", "pool",
-    "potty", "pretend", "pretty", "puppy", "puzzle", "quiet", "radio", "rain",
-    "read", "red", "refrigerator", "ride", "room", "sad", "same", "say",
-    "scissors", "see", "shhh", "shirt", "shoe", "shower", "sick", "sleep",
-    "sleepy", "smile", "snack", "snow", "stairs", "stay", "sticky", "store",
-    "story", "stuck", "sun", "table", "talk", "taste", "thankyou", "that",
-    "there", "think", "thirsty", "tiger", "time", "tomorrow", "tongue",
-    "tooth", "toothbrush", "touch", "toy", "tree", "uncle", "underwear", "up",
-    "vacuum", "wait", "wake", "water", "wet", "weus", "where", "white", "who",
-    "why", "will", "wolf", "yellow", "yes", "yesterday", "yourself", "yucky",
-    "zebra", "zipper",
+    # Chapter 1 – Everyday Basics (Easy → Hard: simple nouns first, abstract/compound last)
+    "apple", "bee", "bed", "bath", "bad", "arm", "all", "aunt",
+    "TV", "animal", "alligator", "balloon", "airplane", "any", "bedroom",
+    "another", "awake", "backyard", "after", "because",
+
+    # Chapter 2 – Actions & Feelings (Easy → Hard: simple iconic signs first, temporal/compound last)
+    "bird", "black", "blue", "boat", "book", "boy", "bug", "bye",
+    "can", "car", "cat", "brown", "blow", "carrot", "cereal",
+    "callonphone", "better", "beside", "brother", "before",
+
+    # Chapter 3 – People & Places (Easy → Hard)
+    "dad", "dog", "cow", "cute", "cry", "chair", "child", "clean",
+    "close", "chin", "cheek", "doll", "cloud", "clown", "dance",
+    "closet", "cut", "dirty", "chocolate", "cowboy",
+
+    # Chapter 4 – Nature & Animals (Easy → Hard)
+    "drink", "duck", "ear", "eye", "face", "feet", "down", "fast",
+    "drop", "fall", "elephant", "farm", "donkey", "dry", "find",
+    "empty", "fine", "dryer", "every", "drawer",
+
+    # Chapter 5 – Home & Objects (Easy → Hard)
+    "fish", "flower", "food", "girl", "go", "frog", "gift", "grandma",
+    "flag", "giraffe", "goose", "give", "finger", "garbage", "fireman",
+    "finish", "frenchfries", "first", "for", "glasswindow",
+
+    # Chapter 6 – Body & Senses (Easy → Hard)
+    "hello", "happy", "horse", "grandpa", "home", "hear", "hair", "green",
+    "hat", "head", "grass", "gum", "hen", "hide", "high",
+    "helicopter", "hate", "have", "hesheit", "haveto",
+
+    # Chapter 7 – Playful Waters (Easy → Hard)
+    "hot", "hungry", "icecream", "jump", "kiss", "kitty", "lion", "look",
+    "mad", "jacket", "jeans", "lamp", "like", "lips", "listen",
+    "loud", "make", "into", "later", "if",
+
+    # Chapter 8 – Tidal Routines (Easy → Hard)
+    "no", "milk", "mom", "man", "moon", "mouse", "nap", "nose",
+    "night", "nuts", "many", "mouth", "old", "not", "noisy",
+    "napkin", "morning", "mitten", "now", "minemy",
+
+    # Chapter 9 – Reef Community (Easy → Hard)
+    "orange", "pig", "pizza", "please", "puppy", "pen", "on", "open",
+    "owl", "pencil", "penny", "person", "police", "pool", "potty",
+    "pretty", "pajamas", "outside", "pretend", "owie",
+
+    # Chapter 10 – Deep Comfort (Easy → Hard)
+    "rain", "red", "sad", "see", "shirt", "shoe", "sleep", "quiet",
+    "read", "ride", "room", "say", "scissors", "shower", "sick",
+    "same", "shhh", "radio", "refrigerator", "puzzle",
+
+    # Chapter 11 – Pressure Expressions (Easy → Hard)
+    "sleepy", "smile", "snow", "sun", "thankyou", "tiger", "thirsty", "table",
+    "snack", "stairs", "stay", "store", "stuck", "talk", "taste",
+    "story", "sticky", "that", "there", "think",
+
+    # Chapter 12 – Abyss Discoveries (Easy → Hard)
+    "tooth", "toy", "tree", "water", "white", "up", "tongue", "touch",
+    "time", "uncle", "underwear", "wait", "wake", "wet", "tomorrow",
+    "toothbrush", "vacuum", "weus", "where", "who",
+
+    # Chapter 13 – Trench Mastery (Easy → Hard, 10 signs)
+    "yellow", "yes", "zebra", "zipper", "wolf", "yucky", "will", "yesterday",
+    "yourself", "why",
 ]

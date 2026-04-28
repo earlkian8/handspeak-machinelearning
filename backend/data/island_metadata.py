@@ -133,6 +133,70 @@ _CHAPTER_META: dict[str, dict[str, Any]] = {
         "hint": "Object signs often mimic how you use or interact with the item.",
         "theme": {"sky": "linear-gradient(180deg,#ffe6b8 0%,#ffb16d 100%)", "island": "linear-gradient(180deg,#ff8a65 0%,#e96d4e 100%)"},
     },
+    "chapter-6": {
+        "title": "Body & Senses",
+        "icon": "👁️",
+        "difficulty": "Medium",
+        "story": "Dive into the signs for the body, senses, and the feelings that pulse through every conversation.",
+        "hint": "Body signs are made near the body part they represent — let the location guide your hand.",
+        "theme": {"sky": "linear-gradient(180deg,#1e3a8a 0%,#1d4ed8 100%)", "island": "linear-gradient(180deg,#3b82f6 0%,#1d4ed8 100%)"},
+    },
+    "chapter-7": {
+        "title": "Playful Waters",
+        "icon": "🎮",
+        "difficulty": "Medium",
+        "story": "Fun, feelings, and everyday activities flow through these mid-water currents. Play hard, sign harder.",
+        "hint": "Action signs often start from the body and move outward. Keep movements smooth and deliberate.",
+        "theme": {"sky": "linear-gradient(180deg,#1e1b4b 0%,#312e81 100%)", "island": "linear-gradient(180deg,#4338ca 0%,#3730a3 100%)"},
+    },
+    "chapter-8": {
+        "title": "Tidal Routines",
+        "icon": "🌙",
+        "difficulty": "Medium",
+        "story": "Like tides that follow the rhythm of day and night, these signs cover routines from morning to midnight.",
+        "hint": "Time signs share a consistent plane in front of you — morning, night, now, tomorrow move along the same axis.",
+        "theme": {"sky": "linear-gradient(180deg,#1e1b4b 0%,#1e3a5f 100%)", "island": "linear-gradient(180deg,#1d4ed8 0%,#1e1b4b 100%)"},
+    },
+    "chapter-9": {
+        "title": "Reef Community",
+        "icon": "🪸",
+        "difficulty": "Medium",
+        "story": "Like the coral reef, community thrives on connection. These signs cover the people and manners around you.",
+        "hint": "Social signs like 'please' are smooth and circular — politeness flows naturally in ASL.",
+        "theme": {"sky": "linear-gradient(180deg,#0f172a 0%,#1e3a5f 100%)", "island": "linear-gradient(180deg,#1e3a5f 0%,#0f172a 100%)"},
+    },
+    "chapter-10": {
+        "title": "Deep Comfort",
+        "icon": "💧",
+        "difficulty": "Hard",
+        "story": "As you descend deeper, comfort becomes essential. These signs cover health, rest, and the calm of home.",
+        "hint": "Signs for health and comfort are gentle and fluid — let your natural motion lead.",
+        "theme": {"sky": "linear-gradient(180deg,#0c0a3e 0%,#1e1b4b 100%)", "island": "linear-gradient(180deg,#312e81 0%,#1e1b4b 100%)"},
+    },
+    "chapter-11": {
+        "title": "Pressure Expressions",
+        "icon": "💬",
+        "difficulty": "Hard",
+        "story": "Under the pressure of the deep, these expressions bubble up from within — thoughts, stories, and feelings.",
+        "hint": "Abstract signs need confidence. Hold each sign firmly and trust your muscle memory.",
+        "theme": {"sky": "linear-gradient(180deg,#030712 0%,#0c0a3e 100%)", "island": "linear-gradient(180deg,#1e1b4b 0%,#030712 100%)"},
+    },
+    "chapter-12": {
+        "title": "Abyss Discoveries",
+        "icon": "🔭",
+        "difficulty": "Hard",
+        "story": "In the abyss, curiosity reigns. These signs explore time, relationships, and the great unknown of the deep.",
+        "hint": "WH-question signs (who, where) share a wrinkled-brow expression — your face signs too!",
+        "theme": {"sky": "linear-gradient(180deg,#020617 0%,#0f0a2e 100%)", "island": "linear-gradient(180deg,#0f172a 0%,#020617 100%)"},
+    },
+    "chapter-13": {
+        "title": "Trench Mastery",
+        "icon": "🏆",
+        "difficulty": "Hard",
+        "story": "You've reached the deepest trench. These final signs complete your mastery — only dedicated divers make it here.",
+        "hint": "You've come so far. Confidence is the last skill. Each sign is a victory.",
+        "theme": {"sky": "linear-gradient(180deg,#000000 0%,#020617 100%)", "island": "linear-gradient(180deg,#0c0a1e 0%,#000000 100%)"},
+    },
 }
 
 _DEFAULT_THEMES = [
@@ -167,14 +231,14 @@ def _build_merged_alphabet_island() -> dict[str, Any]:
 
     return {
         "id": "alphabet",
-        "title": "Alphabet Island",
+        "title": "Alphabet Dive",
         "order": 1,
         "icon": "🌴",
         "type": "alphabet",
         "difficulty": "Easy",
         "difficulty_rank": 1,
         "has_learn": True,
-        "has_drill": False,
+        "has_drill": True,
         "has_converse": False,
         "boss": {
             "name": "The Final Letter",
@@ -182,8 +246,8 @@ def _build_merged_alphabet_island() -> dict[str, Any]:
             "border_color": "#fbbf24",
         },
         "intro": {
-            "title": "Alphabet Island",
-            "story": "Welcome to the lush jungles of Alphabet Island! Master every ASL letter from A to Y as you trek through tropical terrain. Each letter conquered brings you closer to the Final Letter boss challenge!",
+            "title": "Alphabet Dive",
+            "story": "Welcome to the lush jungles of Alphabet Dive! Master every ASL letter from A to Y as you trek through tropical terrain. Each letter conquered brings you closer to the Final Letter boss challenge!",
             "description": "Learn and practice all ASL alphabet letters in one epic island journey.",
             "objective": "Complete all 24 letter levels and defeat The Final Letter!",
             "hint": "Hold each letter steady for 1-2 seconds. Clear finger and hand positioning is key!",
@@ -227,6 +291,38 @@ def _build_vocab_island(topic: dict, order: int, idx: int) -> dict[str, Any]:
             "boss": {"name": "Household Gauntlet", "icon": "🔑", "border_color": "#ea580c"},
             "theme_extra": {"gradient": "linear-gradient(135deg, #9a3412, #ea580c, #fb923c)", "particles": "sparkles"},
         },
+        "chapter-6": {
+            "boss": {"name": "The Senses Overlord", "icon": "👁️", "border_color": "#60a5fa"},
+            "theme_extra": {"gradient": "linear-gradient(135deg, #1e40af, #2563eb, #60a5fa)", "particles": "clouds"},
+        },
+        "chapter-7": {
+            "boss": {"name": "The Fun Champion", "icon": "🎮", "border_color": "#818cf8"},
+            "theme_extra": {"gradient": "linear-gradient(135deg, #312e81, #4338ca, #6366f1)", "particles": "orbs"},
+        },
+        "chapter-8": {
+            "boss": {"name": "The Night Keeper", "icon": "🌙", "border_color": "#a78bfa"},
+            "theme_extra": {"gradient": "linear-gradient(135deg, #1e1b4b, #3730a3, #6366f1)", "particles": "orbs"},
+        },
+        "chapter-9": {
+            "boss": {"name": "The Reef Guardian", "icon": "🪸", "border_color": "#34d399"},
+            "theme_extra": {"gradient": "linear-gradient(135deg, #064e3b, #065f46, #059669)", "particles": "butterflies"},
+        },
+        "chapter-10": {
+            "boss": {"name": "The Deep Medic", "icon": "💧", "border_color": "#6366f1"},
+            "theme_extra": {"gradient": "linear-gradient(135deg, #1e1b4b, #312e81, #4f46e5)", "particles": "orbs"},
+        },
+        "chapter-11": {
+            "boss": {"name": "The Expression Master", "icon": "💬", "border_color": "#c084fc"},
+            "theme_extra": {"gradient": "linear-gradient(135deg, #3b0764, #7e22ce, #a855f7)", "particles": "sparkles"},
+        },
+        "chapter-12": {
+            "boss": {"name": "The Abyss Oracle", "icon": "🔭", "border_color": "#4f46e5"},
+            "theme_extra": {"gradient": "linear-gradient(135deg, #0f172a, #1e1b4b, #312e81)", "particles": "orbs"},
+        },
+        "chapter-13": {
+            "boss": {"name": "The Trench Master", "icon": "🏆", "border_color": "#fbbf24"},
+            "theme_extra": {"gradient": "linear-gradient(135deg, #0f172a, #1c1917, #292524)", "particles": "sparkles"},
+        },
     }
 
     boss_meta = _VOCAB_BOSS.get(topic["id"], {})
@@ -261,7 +357,7 @@ def _build_vocab_island(topic: dict, order: int, idx: int) -> dict[str, Any]:
         "has_drill": True,
         "has_converse": False,
         "intro": {
-            "title": f"{title} Island",
+            "title": f"{title} Dive",
             "story": meta.get("story", f"Learn and master essential signs in {title} on this island."),
             "description": f"Practice these signs and build your vocabulary for {title.lower()}.",
             "objective": f"Complete all levels and defeat the island boss!",

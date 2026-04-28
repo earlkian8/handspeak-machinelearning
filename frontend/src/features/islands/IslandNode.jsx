@@ -19,7 +19,7 @@ const ZONE_THEMES = {
 
 const DEFAULT_THEME = { grad: 'linear-gradient(135deg, #334155, #475569, #64748b)', accent: '#94a3b8', glow: 'rgba(148,163,184,0.35)', Icon: Star, label: 'Unknown' };
 
-const toDiveLabel = (value = '') => value.replace(/\bIslands\b/g, 'Dives').replace(/\bIsland\b/g, 'Dive');
+const toDiveLabel = (value = '') => value;
 
 /* ── SVG decorations per theme ── */
 function IslandDecoration({ type }) {

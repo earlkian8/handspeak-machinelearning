@@ -13,6 +13,7 @@ import {
   getLevelDifficultyZone,
 } from './studyVoyage';
 import { useIslands } from '../../contexts/IslandsContext';
+import TutorialModal, { isTutorialSkipped } from '../../components/TutorialModal';
 
 const DIFF_COLORS = {
   Beginner: { bg: 'rgba(52,211,153,0.15)', text: '#6ee7b7', border: 'rgba(52,211,153,0.3)' },
@@ -177,6 +178,7 @@ export default function StudyIsland() {
   const navigate = useNavigate();
   const { getIslandById, islandsLoading } = useIslands();
   const [progress, setProgress] = useState(getInitialStudyProgress());
+  const [tutorialLevel, setTutorialLevel] = useState(null);
   const nextLevelRef = useRef(null);
 
   useEffect(() => {
@@ -252,7 +254,14 @@ export default function StudyIsland() {
     );
   }
 
-  const launchLevel = (levelId) => navigate(`/study/${island.id}/level/${levelId}`);
+  const launchLevel = (levelId) => {
+    if (isTutorialSkipped()) {
+      navigate(`/study/${island.id}/level/${levelId}`);
+    } else {
+      const level = island.levels.find((l) => l.id === levelId);
+      setTutorialLevel(level || { id: levelId, label: levelId });
+    }
+  };
 
   // Calculate snake grid layout
   const ITEMS_PER_ROW = 5;
@@ -467,6 +476,15 @@ export default function StudyIsland() {
             )}
           </button>
         </div>
+      )}
+
+      {tutorialLevel && (
+        <TutorialModal
+          word={tutorialLevel.label}
+          isLetter={island.type === 'alphabet'}
+          onProceed={() => { const id = tutorialLevel.id; setTutorialLevel(null); navigate(`/study/${island.id}/level/${id}`); }}
+          onSkip={() => { const id = tutorialLevel.id; setTutorialLevel(null); navigate(`/study/${island.id}/level/${id}`); }}
+        />
       )}
 
       <style>{`

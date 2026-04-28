@@ -8,6 +8,7 @@ import {
   isIslandUnlocked,
 } from '../study/studyVoyage';
 import { useIslands } from '../../contexts/IslandsContext';
+import TutorialModal, { isTutorialSkipped, clearTutorialSkip, markTutorialSkipped } from '../../components/TutorialModal';
 
 /* ── per-island theme palette ── */
 const ISLAND_THEMES = {
@@ -199,6 +200,16 @@ export default function IslandOverview() {
   const { getIslandById } = useIslands();
   const [progress, setProgress] = useState(() => getStoredStudyProgress());
   const [conversationStats, setConversationStats] = useState(null);
+  const [tutorialEnabled, setTutorialEnabled] = useState(() => !isTutorialSkipped());
+
+  const handleTutorialToggle = () => {
+    if (tutorialEnabled) {
+      markTutorialSkipped();
+    } else {
+      clearTutorialSkip();
+    }
+    setTutorialEnabled((v) => !v);
+  };
 
   useEffect(() => {
     let active = true;
@@ -238,10 +249,17 @@ export default function IslandOverview() {
   const stars = progressPct >= 100 ? 3 : progressPct >= 66 ? 2 : progressPct >= 33 ? 1 : 0;
   const bossName = island.boss?.name;
 
+  const isAlphabet = islandId === 'alphabet';
+
   // Determine mode statuses
-  const learnStatus = !unlocked ? 'locked' : !island.hasLearn ? 'locked' : completedCount === totalCount ? 'completed' : completedCount > 0 ? 'in-progress' : 'in-progress';
-  const drillStatus = !unlocked ? 'locked' : !island.hasDrill ? 'locked' : 'in-progress';
+  const learnStatus = !unlocked ? 'locked' : !island.hasLearn ? 'locked' : completedCount === totalCount ? 'completed' : 'in-progress';
+  const drillStatus = !unlocked ? 'locked' : (!island.hasDrill && !isAlphabet) ? 'locked' : 'in-progress';
   const converseStatus = !unlocked ? 'locked' : !island.hasConverse ? 'coming-soon' : 'in-progress';
+
+  const handleLearnClick = () => {
+    if (!island.hasLearn) return;
+    navigate(`/study/${islandId}`);
+  };
 
   return (
     <div style={{
@@ -413,49 +431,83 @@ export default function IslandOverview() {
             reward={island.hasLearn ? `+${island.levels[0]?.rewardXp || 5} XP / level` : null}
             status={learnStatus}
             disabled={!unlocked || !island.hasLearn}
-            onClick={() => island.hasLearn && navigate(`/study/${islandId}`)}
+            onClick={handleLearnClick}
           />
 
           <QuestCard
-            icon={<Target size={22} color={island.hasDrill ? '#fbbf24' : 'rgba(255,255,255,0.3)'} />}
-            accentColor={island.hasDrill ? '#fbbf24' : 'rgba(255,255,255,0.3)'}
+            icon={<Target size={22} color={(island.hasDrill || isAlphabet) ? '#fbbf24' : 'rgba(255,255,255,0.3)'} />}
+            accentColor={(island.hasDrill || isAlphabet) ? '#fbbf24' : 'rgba(255,255,255,0.3)'}
             questLabel="Drill Challenge"
             title="Drill"
-            description={
-              island.hasDrill
-                ? 'Rapid-fire recall across the full sign set. Speed and accuracy matter!'
-                : 'Drill mode is not available for this island.'
-            }
-            progress={island.hasDrill ? 'Open practice' : 'Not available'}
-            reward={island.hasDrill ? 'Speed bonus' : null}
+            description="Rapid-fire recall across the full sign set. Speed and accuracy matter!"
+            progress="Open practice"
+            reward="Speed bonus"
             status={drillStatus}
-            disabled={!unlocked || !island.hasDrill}
-            onClick={() => island.hasDrill && navigate('/practice')}
+            disabled={!unlocked}
+            onClick={() => navigate('/practice')}
           />
 
-          <QuestCard
-            icon={<MessageCircle size={22} color={island.hasConverse ? '#34d399' : 'rgba(255,255,255,0.3)'} />}
-            accentColor={island.hasConverse ? '#34d399' : 'rgba(255,255,255,0.3)'}
-            questLabel="Converse Mission"
-            title="Converse"
-            description={
-              island.hasConverse
-                ? 'Reply to NPC prompts in real conversations. Where signing becomes a real skill!'
-                : 'Reply Quest unlocks on this island in a future phase.'
-            }
-            progress={
-              island.hasConverse
-                ? conversationStats
-                  ? `${conversationStats.prompts_correct || 0} correct · ${conversationStats.sessions_completed || 0} sessions`
-                  : 'Ready to start'
-                : 'Coming soon'
-            }
-            reward={island.hasConverse ? 'Mastery XP' : null}
-            status={converseStatus}
-            disabled={!unlocked || !island.hasConverse}
-            onClick={() => island.hasConverse && navigate(`/islands/${islandId}/converse`)}
-          />
+          {!isAlphabet && (
+            <QuestCard
+              icon={<MessageCircle size={22} color={island.hasConverse ? '#34d399' : 'rgba(255,255,255,0.3)'} />}
+              accentColor={island.hasConverse ? '#34d399' : 'rgba(255,255,255,0.3)'}
+              questLabel="Converse Mission"
+              title="Converse"
+              description={
+                island.hasConverse
+                  ? 'Reply to NPC prompts in real conversations. Where signing becomes a real skill!'
+                  : 'Reply Quest unlocks on this island in a future phase.'
+              }
+              progress={
+                island.hasConverse
+                  ? conversationStats
+                    ? `${conversationStats.prompts_correct || 0} correct · ${conversationStats.sessions_completed || 0} sessions`
+                    : 'Ready to start'
+                  : 'Coming soon'
+              }
+              reward={island.hasConverse ? 'Mastery XP' : null}
+              status={converseStatus}
+              disabled={!unlocked || !island.hasConverse}
+              onClick={() => island.hasConverse && navigate(`/islands/${islandId}/converse`)}
+            />
+          )}
         </div>
+
+        {/* ── Tutorial settings ── */}
+        <div style={{
+          marginTop: 20, padding: '14px 18px',
+          background: 'rgba(255,255,255,0.04)',
+          border: '1px solid rgba(255,255,255,0.08)',
+          borderRadius: 16,
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+        }}>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 800, color: 'rgba(255,255,255,0.85)' }}>Level Tutorial Videos</div>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', fontWeight: 600, marginTop: 2 }}>
+              {tutorialEnabled ? 'Show tutorial video before each level' : 'Tutorial videos are turned off'}
+            </div>
+          </div>
+          <button
+            onClick={handleTutorialToggle}
+            style={{
+              position: 'relative', width: 44, height: 24, borderRadius: 99,
+              background: tutorialEnabled ? '#34d399' : 'rgba(255,255,255,0.12)',
+              border: `1.5px solid ${tutorialEnabled ? '#6ee7b7' : 'rgba(255,255,255,0.15)'}`,
+              cursor: 'pointer', flexShrink: 0, transition: 'background 0.25s, border-color 0.25s',
+              padding: 0,
+            }}
+          >
+            <div style={{
+              position: 'absolute', top: 2,
+              left: tutorialEnabled ? 22 : 2,
+              width: 16, height: 16, borderRadius: '50%',
+              background: 'white',
+              boxShadow: '0 1px 4px rgba(0,0,0,0.4)',
+              transition: 'left 0.25s cubic-bezier(0.34,1.56,0.64,1)',
+            }} />
+          </button>
+        </div>
+
       </div>
     </div>
   );
