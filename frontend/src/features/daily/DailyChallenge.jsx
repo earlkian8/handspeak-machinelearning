@@ -8,6 +8,8 @@ import FeatureIntroModal, { isIntroSeen } from '../../components/FeatureIntroMod
 import {
   isTodayComplete, markTodayComplete, computeStreak, getDailyWords, getTodayString,
 } from '../../lib/dailyChallenge';
+import { recordActivity } from '../../lib/rewards';
+import { showAchievements } from '../../components/AchievementToast';
 
 const AUTO_ADVANCE_MS = 1300;
 
@@ -85,7 +87,10 @@ export default function DailyChallenge() {
     advanceTimerRef.current = window.setTimeout(() => {
       if (currentIdx + 1 >= questions.length) {
         markTodayComplete();
-        setStreak(computeStreak());
+        const newStreak = computeStreak();
+        setStreak(newStreak);
+        recordActivity({ activityType: 'daily', streak: newStreak })
+          .then(r => r?.new_achievements && showAchievements(r.new_achievements));
         setDone(true);
       } else {
         setCurrentIdx(i => i + 1);

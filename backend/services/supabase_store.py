@@ -177,6 +177,18 @@ class SupabaseStore:
 
             CREATE INDEX IF NOT EXISTS chain_sessions_user_idx
                 ON conversation_chain_sessions (user_id);
+
+            -- Phase 5: achievements
+            CREATE TABLE IF NOT EXISTS user_achievements (
+                id              BIGSERIAL   PRIMARY KEY,
+                user_id         BIGINT      NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
+                achievement_id  TEXT        NOT NULL,
+                earned_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                CONSTRAINT user_achievements_unique UNIQUE (user_id, achievement_id)
+            );
+
+            CREATE INDEX IF NOT EXISTS user_achievements_user_idx
+                ON user_achievements (user_id);
             """
 
             with self._connect() as connection:
@@ -643,6 +655,91 @@ class SupabaseStore:
                 Json(response_payload),
             ),
         )
+
+
+    # ── Achievements ─────────────────────────────────────────────────────────
+
+    def get_user_achievements(self, user_id: int) -> list[str]:
+        """Return list of achievement_ids already earned by the user."""
+        rows = self._fetchall(
+            "SELECT achievement_id FROM user_achievements WHERE user_id = %s",
+            (user_id,),
+        )
+        return [r["achievement_id"] for r in rows]
+
+    def award_achievement(self, user_id: int, achievement_id: str) -> bool:
+        """Insert achievement; returns True if newly awarded, False if already existed."""
+        query = """
+            INSERT INTO user_achievements (user_id, achievement_id)
+            VALUES (%s, %s)
+            ON CONFLICT (user_id, achievement_id) DO NOTHING
+            RETURNING achievement_id
+        """
+        row = self._fetchone(query, (user_id, achievement_id))
+        return row is not None
+
+    def get_activity_counts(self, user_id: int) -> dict:
+        """Return the activities sub-dict from study_progress for counter-based achievements."""
+        row = self._fetchone(
+            "SELECT progress FROM study_progress WHERE user_id = %s",
+            (user_id,),
+        )
+        if not row or not row["progress"]:
+            return {}
+        return row["progress"].get("activities", {})
+
+    def increment_activity(self, user_id: int, activity_type: str) -> int:
+        """Increment a counter in study_progress.activities and return the new value."""
+        query = """
+            INSERT INTO study_progress (user_id, progress, updated_at)
+            VALUES (%s, %s::jsonb, NOW())
+            ON CONFLICT (user_id) DO UPDATE
+            SET progress = jsonb_set(
+                    COALESCE(study_progress.progress, '{}'::jsonb),
+                    ARRAY['activities', %s],
+                    (COALESCE(
+                        (study_progress.progress -> 'activities' ->> %s)::int,
+                        0
+                    ) + 1)::text::jsonb
+                ),
+                updated_at = NOW()
+            RETURNING (progress -> 'activities' ->> %s)::int AS new_count
+        """
+        init = {
+            "activities": {activity_type: 1},
+            "xp": 0, "level": 1,
+            "completed_phrases": [], "unlockedIslandIds": [],
+            "islands": {}, "totalXp": 0, "version": 2,
+        }
+        row = self._fetchone(query, (user_id, Json(init), activity_type, activity_type, activity_type))
+        return int(row["new_count"]) if row and row["new_count"] is not None else 1
+
+    def grant_xp(self, user_id: int, xp_amount: int) -> dict:
+        """Add XP to the user's study_progress and return updated xp + level."""
+        query = """
+            INSERT INTO study_progress (user_id, progress, updated_at)
+            VALUES (%s, %s::jsonb, NOW())
+            ON CONFLICT (user_id) DO UPDATE
+            SET progress = jsonb_set(
+                    jsonb_set(
+                        COALESCE(study_progress.progress, '{}'::jsonb),
+                        '{xp}',
+                        (COALESCE((study_progress.progress->>'xp')::int, 0) + %s)::text::jsonb
+                    ),
+                    '{level}',
+                    (1 + (COALESCE((study_progress.progress->>'xp')::int, 0) + %s) / 50)::text::jsonb
+                ),
+                updated_at = NOW()
+            RETURNING
+                (progress->>'xp')::int    AS xp,
+                (progress->>'level')::int AS level
+        """
+        init = {"xp": xp_amount, "level": 1 + xp_amount // 50, "completed_phrases": [],
+                "unlockedIslandIds": [], "islands": {}, "totalXp": 0, "version": 2}
+        row = self._fetchone(query, (user_id, Json(init), xp_amount, xp_amount))
+        xp = int(row["xp"]) if row and row["xp"] is not None else xp_amount
+        level = int(row["level"]) if row and row["level"] is not None else 1
+        return {"xp": xp, "level": level}
 
 
 @lru_cache(maxsize=1)

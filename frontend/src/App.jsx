@@ -19,7 +19,9 @@ import Converse from './features/converse/Converse';
 import SignQuiz from './features/quiz/SignQuiz';
 import DailyChallenge from './features/daily/DailyChallenge';
 import SignMatch from './features/match/SignMatch';
+import AchievementsPage from './features/achievements/AchievementsPage';
 import Settings from './features/settings/Settings';
+import AchievementToastContainer from './components/AchievementToast';
 
 function App() {
   const [user, setUser] = useState(null);
@@ -81,6 +83,7 @@ function App() {
           <Route path="/quiz" element={guard(<SignQuiz />)} />
           <Route path="/daily" element={guard(<DailyChallenge />)} />
           <Route path="/match" element={guard(<SignMatch />)} />
+          <Route path="/achievements" element={guard(<AchievementsPage />)} />
 
           {/* Learn mode (reuses existing Study Voyage screens under the Islands journey) */}
           <Route path="/study" element={<Navigate to="/islands" replace />} />
@@ -99,7 +102,8 @@ function App() {
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </div>
-      <Toaster 
+      <AchievementToastContainer />
+      <Toaster
         position="top-center" 
         toastOptions={{ 
           style: { 

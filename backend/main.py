@@ -13,6 +13,7 @@ from routes import auth, practice, study
 from routes import gesture
 from routes import conversation
 from routes import youtube
+from routes import rewards
 from services.supabase_store import get_store
 
 configure_logging()
@@ -34,6 +35,7 @@ app.include_router(study.router)
 app.include_router(gesture.router)
 app.include_router(conversation.router)
 app.include_router(youtube.router)
+app.include_router(rewards.router)
 
 
 @app.middleware("http")

@@ -109,6 +109,22 @@ export default function Dashboard({ user }) {
           <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', fontWeight: 700 }}>· Lv.{stats.playerLevel}</span>
         </div>
 
+        {/* Achievements */}
+        <button onClick={() => navigate('/achievements')}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 7,
+            padding: '9px 18px', borderRadius: 50,
+            background: 'rgba(251,191,36,0.15)', border: '1.5px solid rgba(251,191,36,0.35)',
+            backdropFilter: 'blur(8px)',
+            cursor: 'pointer', fontSize: 13, fontWeight: 800, color: '#fde68a',
+            transition: 'all 0.2s', fontFamily: "'Nunito',sans-serif",
+          }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(251,191,36,0.28)'; }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(251,191,36,0.15)'; }}
+        >
+          <Trophy size={15} /> Badges
+        </button>
+
         {/* Settings */}
         <button onClick={() => navigate('/settings')}
           style={{

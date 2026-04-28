@@ -5,6 +5,8 @@ import { fetchJson } from '../../lib/api';
 import { normalizeWordEntry } from '../../lib/vocabulary';
 import { getVideoUrl } from '../../components/TutorialModal';
 import FeatureIntroModal, { isIntroSeen } from '../../components/FeatureIntroModal';
+import { recordActivity } from '../../lib/rewards';
+import { showAchievements } from '../../components/AchievementToast';
 
 const QUESTIONS_PER_ROUND = 10;
 const DISTRACTORS = 3;
@@ -86,6 +88,9 @@ export default function SignQuiz() {
 
     advanceTimerRef.current = window.setTimeout(() => {
       if (currentIdx + 1 >= questions.length) {
+        const finalScore = correct ? score + 1 : score;
+        recordActivity({ activityType: 'quiz', score: finalScore, total: questions.length })
+          .then(r => r?.new_achievements && showAchievements(r.new_achievements));
         setDone(true);
       } else {
         setCurrentIdx(i => i + 1);

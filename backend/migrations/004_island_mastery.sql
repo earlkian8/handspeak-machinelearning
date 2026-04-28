@@ -34,6 +34,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trigger_update_mastery ON island_mastery;
 CREATE TRIGGER trigger_update_mastery
 BEFORE UPDATE ON island_mastery
 FOR EACH ROW EXECUTE PROCEDURE update_mastery_timestamp();

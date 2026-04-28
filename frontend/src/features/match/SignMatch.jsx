@@ -5,6 +5,8 @@ import { fetchJson } from '../../lib/api';
 import { normalizeWordEntry } from '../../lib/vocabulary';
 import { getVideoUrl } from '../../components/TutorialModal';
 import FeatureIntroModal, { isIntroSeen } from '../../components/FeatureIntroModal';
+import { recordActivity } from '../../lib/rewards';
+import { showAchievements } from '../../components/AchievementToast';
 
 const PAIRS = 6;
 const FLIP_BACK_DELAY = 1000;
@@ -121,6 +123,8 @@ export default function SignMatch() {
         setFinalTime(t);
         setDone(true);
         window.clearInterval(timerRef.current);
+        recordActivity({ activityType: 'match', misses: mistakes })
+          .then(r => r?.new_achievements && showAchievements(r.new_achievements));
       }
     } else {
       setMistakes(m => m + 1);
