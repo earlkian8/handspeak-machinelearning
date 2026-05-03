@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, CheckCircle2, Compass, Lock, Star, Zap, Target, Lightbulb, Hand, Users, Palette, Utensils, PawPrint } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Compass, Lock, Star, Zap, Target, Lightbulb, Hand, Users, Palette, Utensils, PawPrint, Home, Heart, MapPin } from 'lucide-react';
 import {
   STUDY_ISLANDS,
   getInitialStudyProgress,
@@ -23,10 +23,12 @@ const DIFF_META = {
 /* Map each island id → Lucide icon component + display color */
 const ISLAND_ICONS = {
   greetings: { Icon: Hand,     color: '#0ea5e9' },
-  family:    { Icon: Users,    color: '#22c55e' },
-  colors:    { Icon: Palette,  color: '#a855f7' },
-  food:      { Icon: Utensils, color: '#f97316' },
-  animals:   { Icon: PawPrint, color: '#14b8a6' },
+  'chapter-1': { Icon: PawPrint, color: '#14b8a6' },
+  'chapter-2': { Icon: Utensils, color: '#f97316' },
+  'chapter-3': { Icon: Users, color: '#22c55e' },
+  'chapter-4': { Icon: Home, color: '#60a5fa' },
+  'chapter-5': { Icon: Heart, color: '#f43f5e' },
+  'chapter-6': { Icon: MapPin, color: '#a855f7' },
 };
 
 export default function Study() {
@@ -449,7 +451,7 @@ export default function Study() {
                 <span style={{ fontSize: 28, lineHeight: 1, filter: 'drop-shadow(0 1px 4px rgba(0,0,0,0.3))' }}>
                   {(() => {
                     const meta = ISLAND_ICONS[selectedIsland.id];
-                    if (!meta) return selectedIsland.icon;
+                    if (!meta) return null;
                     const { Icon, color } = meta;
                     return <Icon size={26} color={color} strokeWidth={2.2} />;
                   })()}

@@ -92,7 +92,6 @@ export default function Dashboard({ user }) {
             {initials}
           </div>
           <div>
-            <div style={{ fontSize: 10, fontWeight: 900, color: 'rgba(255,255,255,0.6)', letterSpacing: '0.18em', textTransform: 'uppercase', marginBottom: 2 }}>Student</div>
             <div style={{ fontSize: 16, fontWeight: 900, color: 'white', textShadow: '0 1px 6px rgba(0,0,0,0.3)' }}>{fullName}</div>
           </div>
         </div>

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, CheckCircle2, Lock, Play, Star, Zap, Target, Flame, Crown, ChevronRight, Trophy } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Lock, Play, Star, Zap, Target, Flame, Crown, ChevronRight, Trophy, Bolt, Theater, Landmark, Shield, Heart, MapPin } from 'lucide-react';
 import {
   getInitialStudyProgress,
   getStoredStudyProgress,
@@ -54,7 +54,7 @@ function MilestoneMarker({ index }) {
 }
 
 /* ── level node on the snake path ── */
-function LevelNode({ level, index, completed, levelUnlocked, isBoss, bossInfo, isCurrentNext, onClick, totalLevels }) {
+function LevelNode({ level, index, completed, levelUnlocked, isBoss, bossInfo, bossIcon, isCurrentNext, onClick, totalLevels }) {
   const zone = getLevelDifficultyZone(index, totalLevels);
   const zoneColor = DIFF_COLORS[zone] || DIFF_COLORS.Easy;
   const nodeSize = isBoss ? 80 : 56;
@@ -122,7 +122,7 @@ function LevelNode({ level, index, completed, levelUnlocked, isBoss, bossInfo, i
           <CheckCircle2 size={isBoss ? 28 : 20} color="white" />
         ) : isBoss ? (
           <div style={{ textAlign: 'center' }}>
-            <span style={{ fontSize: 18 }}>{bossInfo?.icon || '👑'}</span>
+            {bossIcon || <Crown size={20} color="white" />}
           </div>
         ) : levelUnlocked ? (
           <div style={{ textAlign: 'center' }}>
@@ -201,6 +201,18 @@ export default function StudyIsland() {
   const nextPhraseLevel = island ? island.levels.find(l => !isLevelCompleted(progress, island.id, l.id)) : null;
   const progressPct = island ? Math.round((phraseCompleteCount / Math.max(island.levels.length, 1)) * 100) : 0;
   const bossInfo = island?.boss || null;
+  const bossIcon = useMemo(() => {
+    const iconName = bossInfo?.icon || '';
+    const lookup = {
+      bolt: <Bolt size={20} color="white" />,
+      theater: <Theater size={20} color="white" />,
+      landmark: <Landmark size={20} color="white" />,
+      shield: <Shield size={20} color="white" />,
+      heart: <Heart size={20} color="white" />,
+      'map-pin': <MapPin size={20} color="white" />,
+    };
+    return lookup[iconName] || null;
+  }, [bossInfo?.icon]);
   const unlocked = island ? isIslandUnlocked(progress, island.id) : false;
 
   // ALL hooks must be above early returns
@@ -419,6 +431,7 @@ export default function StudyIsland() {
                           levelUnlocked={lvlUnlocked}
                           isBoss={boss}
                           bossInfo={bossInfo}
+                          bossIcon={bossIcon}
                           isCurrentNext={isNext}
                           totalLevels={island.levels.length}
                           onClick={() => launchLevel(level.id)}

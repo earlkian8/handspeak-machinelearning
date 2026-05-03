@@ -52,3 +52,9 @@ export function putJson(path, body) {
     body: JSON.stringify(body),
   });
 }
+
+export function deleteJson(path) {
+  return fetchJson(path, {
+    method: 'DELETE',
+  });
+}
