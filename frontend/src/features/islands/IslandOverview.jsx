@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, BookOpen, Target, Lightbulb, Star, Lock, Trophy, Flame, Shield, ChevronRight, Zap } from 'lucide-react';
+import { ArrowLeft, BookOpen, Target, Lightbulb, Star, Lock, Trophy, Flame, Shield, ChevronRight, Zap, Swords } from 'lucide-react';
 import {
   getIslandProgress,
   getStoredStudyProgress,
@@ -246,6 +246,7 @@ export default function IslandOverview() {
   const xpTotal = totalCount * (island.levels[0]?.rewardXp || 5);
   const stars = progressPct >= 100 ? 3 : progressPct >= 66 ? 2 : progressPct >= 33 ? 1 : 0;
   const bossName = island.boss?.name;
+  const islandCompleted = totalCount > 0 && completedCount >= totalCount;
 
   const isAlphabet = islandId === 'alphabet';
 
@@ -430,18 +431,29 @@ export default function IslandOverview() {
             onClick={handleLearnClick}
           />
 
-          <QuestCard
-            icon={<Target size={22} color={(island.hasDrill || isAlphabet) ? '#fbbf24' : 'rgba(255,255,255,0.3)'} />}
-            accentColor={(island.hasDrill || isAlphabet) ? '#fbbf24' : 'rgba(255,255,255,0.3)'}
-            questLabel="Drill Challenge"
-            title="Drill"
-            description="Rapid-fire recall across the full sign set. Speed and accuracy matter!"
-            progress="Open practice"
-            reward="Speed bonus"
-            status={drillStatus}
-            disabled={!unlocked}
-            onClick={() => navigate('/practice')}
-          />
+          {/* Chapter Challenge — unlocks after ALL levels completed */}
+          {(() => {
+            const islandCompleted = totalCount > 0 && completedCount >= totalCount;
+            const challengeStatus = !unlocked ? 'locked' : !islandCompleted ? 'locked' : 'in-progress';
+            return (
+              <QuestCard
+                icon={<Swords size={22} color={islandCompleted ? '#fb923c' : 'rgba(255,255,255,0.3)'} />}
+                accentColor={islandCompleted ? '#fb923c' : 'rgba(255,255,255,0.3)'}
+                questLabel="Chapter Challenge"
+                title="Challenge"
+                description={
+                  !islandCompleted
+                    ? `Complete all ${totalCount} levels first to unlock the Chapter Challenge!`
+                    : 'Answer 10 questions to prove you mastered this chapter. Multiple choice, identify signs, and perform actions!'
+                }
+                progress={islandCompleted ? '10 questions · randomized' : `${completedCount}/${totalCount} levels done`}
+                reward="+30 XP"
+                status={challengeStatus}
+                disabled={!unlocked || !islandCompleted}
+                onClick={() => navigate(`/islands/${islandId}/challenge`)}
+              />
+            );
+          })()}
 
         </div>
 

@@ -194,12 +194,16 @@ export default function StudyIsland() {
   }, []);
 
   const island = getIslandById(islandId);
+  const levels = useMemo(() => {
+    if (!island?.levels) return [];
+    return [...island.levels].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  }, [island?.levels]);
   const islandProgress = useMemo(() => getIslandProgress(progress, islandId), [progress, islandId]);
 
   // These computed values need to be safe for null island (before early returns)
-  const phraseCompleteCount = island ? island.levels.filter(l => isLevelCompleted(progress, island.id, l.id)).length : 0;
-  const nextPhraseLevel = island ? island.levels.find(l => !isLevelCompleted(progress, island.id, l.id)) : null;
-  const progressPct = island ? Math.round((phraseCompleteCount / Math.max(island.levels.length, 1)) * 100) : 0;
+  const phraseCompleteCount = island ? levels.filter(l => isLevelCompleted(progress, island.id, l.id)).length : 0;
+  const nextPhraseLevel = island ? levels.find(l => !isLevelCompleted(progress, island.id, l.id)) : null;
+  const progressPct = island ? Math.round((phraseCompleteCount / Math.max(levels.length, 1)) * 100) : 0;
   const bossInfo = island?.boss || null;
   const bossIcon = useMemo(() => {
     const iconName = bossInfo?.icon || '';
@@ -266,18 +270,42 @@ export default function StudyIsland() {
     );
   }
 
-  const launchLevel = (levelId) => {
-    if (isTutorialSkipped()) {
-      navigate(`/study/${island.id}/level/${levelId}`);
-    } else {
-      const level = island.levels.find((l) => l.id === levelId);
-      setTutorialLevel(level || { id: levelId, label: levelId });
+  const getTutorialData = (level) => {
+    if (!level) return { displayWord: '', videoWord: '', preferredWord: '' };
+    if (island?.type === 'alphabet') {
+      const letter = level.label || level.id || '';
+      return { displayWord: letter, videoWord: letter, preferredWord: letter };
     }
+    const pool = level.candidatePhrases || level.candidate_phrases || [];
+    if (!Array.isArray(pool) || pool.length === 0) {
+      const fallback = level.label || level.id || '';
+      return { displayWord: fallback, videoWord: fallback, preferredWord: fallback };
+    }
+    const pick = pool[Math.floor(Math.random() * pool.length)];
+    const displayWord = pick?.label || pick?.word || pick?.id || level.label || level.id || '';
+    const videoWord = pick?.word || pick?.id || pick?.label || level.label || level.id || '';
+    return { displayWord, videoWord, preferredWord: videoWord || displayWord };
+  };
+
+  const launchLevel = (levelId) => {
+    if (!island || isTutorialSkipped()) {
+      navigate(`/study/${island?.id}/level/${levelId}`);
+      return;
+    }
+    const level = levels.find((l) => l.id === levelId);
+    const tutorial = getTutorialData(level);
+    setTutorialLevel({
+      id: levelId,
+      label: level?.label || levelId,
+      displayWord: tutorial.displayWord,
+      videoWord: tutorial.videoWord,
+      preferredWord: tutorial.preferredWord,
+    });
   };
 
   // Calculate snake grid layout
   const ITEMS_PER_ROW = 5;
-  const totalRows = Math.ceil(island.levels.length / ITEMS_PER_ROW);
+  const totalRows = Math.ceil(levels.length / ITEMS_PER_ROW);
 
   return (
     <div style={{
@@ -317,7 +345,7 @@ export default function StudyIsland() {
                   {island.difficulty}
                 </span>
                 <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', fontWeight: 700 }}>
-                  {phraseCompleteCount}/{island.levels.length} levels
+                  {phraseCompleteCount}/{levels.length} levels
                 </span>
               </div>
             </div>
@@ -358,7 +386,7 @@ export default function StudyIsland() {
                 <Target size={14} color="white" />
               </div>
               <span style={{ fontSize: 14, fontWeight: 800, color: 'rgba(255,255,255,0.85)' }}>
-                {isBossLevel(island.levels.indexOf(nextPhraseLevel), island.levels.length)
+                {isBossLevel(levels.indexOf(nextPhraseLevel), levels.length)
                   ? `🔥 Boss Challenge: ${nextPhraseLevel.label}`
                   : `Next: Level ${nextPhraseLevel.order} — ${nextPhraseLevel.label}`}
               </span>
@@ -367,7 +395,7 @@ export default function StudyIsland() {
               style={{
                 border: 'none', borderRadius: 12, padding: '10px 18px', cursor: 'pointer',
                 fontWeight: 900, fontSize: 13,
-                background: isBossLevel(island.levels.indexOf(nextPhraseLevel), island.levels.length)
+                background: isBossLevel(levels.indexOf(nextPhraseLevel), levels.length)
                   ? 'linear-gradient(135deg, #ef4444, #fbbf24)'
                   : 'linear-gradient(135deg, #34d399, #22d3ee)',
                 color: '#000', fontFamily: "'Nunito',sans-serif",
@@ -382,7 +410,7 @@ export default function StudyIsland() {
         <div style={{ position: 'relative' }}>
           {Array.from({ length: totalRows }, (_, rowIdx) => {
             const startIdx = rowIdx * ITEMS_PER_ROW;
-            const rowLevels = island.levels.slice(startIdx, startIdx + ITEMS_PER_ROW);
+            const rowLevels = levels.slice(startIdx, startIdx + ITEMS_PER_ROW);
             const isReversed = rowIdx % 2 === 1;
             const items = isReversed ? [...rowLevels].reverse() : rowLevels;
 
@@ -391,7 +419,7 @@ export default function StudyIsland() {
                 {/* Row of nodes */}
                 <div style={{
                   display: 'flex',
-                  justifyContent: rowLevels.length < ITEMS_PER_ROW ? (isReversed ? 'flex-end' : 'flex-start') : 'space-between',
+                  justifyContent: 'space-between',
                   alignItems: 'center',
                   padding: '20px 10px',
                   gap: 8,
@@ -402,7 +430,7 @@ export default function StudyIsland() {
                     {items.map((_, i) => {
                       if (i === items.length - 1) return null;
                       const actualIdx = isReversed ? startIdx + (rowLevels.length - 1 - i) : startIdx + i;
-                      const done = isLevelCompleted(progress, island.id, island.levels[actualIdx]?.id);
+                      const done = isLevelCompleted(progress, island.id, levels[actualIdx]?.id);
                       const x1 = `${(i / (items.length - 1 || 1)) * 80 + 10}%`;
                       const x2 = `${((i + 1) / (items.length - 1 || 1)) * 80 + 10}%`;
                       return (
@@ -418,9 +446,9 @@ export default function StudyIsland() {
                   {items.map((level, i) => {
                     const actualIdx = isReversed ? startIdx + (rowLevels.length - 1 - i) : startIdx + i;
                     const completed = isLevelCompleted(progress, island.id, level.id);
-                    const lvlUnlocked = actualIdx === 0 || isLevelCompleted(progress, island.id, island.levels[actualIdx - 1]?.id);
+                    const lvlUnlocked = actualIdx === 0 || isLevelCompleted(progress, island.id, levels[actualIdx - 1]?.id);
                     const isNext = nextPhraseLevel?.id === level.id;
-                    const boss = isBossLevel(actualIdx, island.levels.length);
+                    const boss = isBossLevel(actualIdx, levels.length);
 
                     return (
                       <div key={level.id} ref={isNext ? nextLevelRef : null} style={{ position: 'relative', zIndex: 1 }}>
@@ -433,7 +461,7 @@ export default function StudyIsland() {
                           bossInfo={bossInfo}
                           bossIcon={bossIcon}
                           isCurrentNext={isNext}
-                          totalLevels={island.levels.length}
+                          totalLevels={levels.length}
                           onClick={() => launchLevel(level.id)}
                         />
                       </div>
@@ -451,7 +479,7 @@ export default function StudyIsland() {
                     <svg width="30" height="36" viewBox="0 0 30 36">
                       <path d="M 15 0 C 5 10, 25 20, 15 36"
                         fill="none"
-                        stroke={isLevelCompleted(progress, island.id, island.levels[startIdx + rowLevels.length - 1]?.id) ? '#34d399' : 'rgba(255,255,255,0.1)'}
+                        stroke={isLevelCompleted(progress, island.id, levels[startIdx + rowLevels.length - 1]?.id) ? '#34d399' : 'rgba(255,255,255,0.1)'}
                         strokeWidth="3" strokeDasharray="6 4"
                         strokeLinecap="round" opacity="0.5"
                       />
@@ -474,7 +502,7 @@ export default function StudyIsland() {
             style={{
               border: 'none', borderRadius: 50, padding: '14px 28px', cursor: 'pointer',
               fontWeight: 900, fontSize: 14,
-              background: isBossLevel(island.levels.indexOf(nextPhraseLevel), island.levels.length)
+              background: isBossLevel(levels.indexOf(nextPhraseLevel), levels.length)
                 ? 'linear-gradient(135deg, #ef4444, #fbbf24)'
                 : 'linear-gradient(135deg, #34d399, #22d3ee)',
               color: '#000', fontFamily: "'Nunito',sans-serif",
@@ -482,7 +510,7 @@ export default function StudyIsland() {
               display: 'flex', alignItems: 'center', gap: 8,
               animation: 'float-btn 3s ease-in-out infinite',
             }}>
-            {isBossLevel(island.levels.indexOf(nextPhraseLevel), island.levels.length) ? (
+            {isBossLevel(levels.indexOf(nextPhraseLevel), levels.length) ? (
               <><Flame size={16} /> Boss: {nextPhraseLevel.label}</>
             ) : (
               <><Play size={14} fill="#000" color="#000" /> Continue Level {nextPhraseLevel.order}</>
@@ -494,9 +522,21 @@ export default function StudyIsland() {
       {tutorialLevel && (
         <TutorialModal
           word={tutorialLevel.label}
+          displayWord={tutorialLevel.displayWord}
+          videoWord={tutorialLevel.videoWord}
           isLetter={island.type === 'alphabet'}
-          onProceed={() => { const id = tutorialLevel.id; setTutorialLevel(null); navigate(`/study/${island.id}/level/${id}`); }}
-          onSkip={() => { const id = tutorialLevel.id; setTutorialLevel(null); navigate(`/study/${island.id}/level/${id}`); }}
+          onProceed={() => {
+            const id = tutorialLevel.id;
+            const preferred = tutorialLevel.preferredWord || '';
+            setTutorialLevel(null);
+            navigate(`/study/${island.id}/level/${id}?word=${encodeURIComponent(preferred)}`);
+          }}
+          onSkip={() => {
+            const id = tutorialLevel.id;
+            const preferred = tutorialLevel.preferredWord || '';
+            setTutorialLevel(null);
+            navigate(`/study/${island.id}/level/${id}?word=${encodeURIComponent(preferred)}`);
+          }}
         />
       )}
 

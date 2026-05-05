@@ -43,6 +43,7 @@ export default function Converse() {
   const [correctPromptIds, setCorrectPromptIds] = useState(() => new Set());
   const [sessionSummary, setSessionSummary] = useState(null);
   const [showIntro, setShowIntro] = useState(() => !isIntroSeen('converse'));
+  const [autoSubmit, setAutoSubmit] = useState(false);
 
   const webcamRef = useRef(null);
   const frameBufferRef = useRef([]);
@@ -63,7 +64,9 @@ export default function Converse() {
         const session = await startConversationSession({ userId, islandId: 'converse' });
         if (!active) return;
         setSessionId(session.session_id);
-        setPrompts(session.prompts || []);
+        // Randomize prompts each session
+        const shuffled = [...(session.prompts || [])].sort(() => Math.random() - 0.5);
+        setPrompts(shuffled);
         setStatus('Read the NPC message, then press record and sign your reply.');
       } catch (error) {
         if (active) setBootstrapError(error.message || 'Unable to start Converse session.');
@@ -195,9 +198,13 @@ export default function Converse() {
       while (frameBufferRef.current.length < MIN_FRAMES_FOR_VERIFY) frameBufferRef.current.push(pad);
     }
 
-    setReadyToSubmit(true);
-    setStatus('Recording stopped. Press submit to check your reply.');
-  }, [isCountingDown, recording, takeFrame, resetFrameBuffer]);
+    if (autoSubmit) {
+      submitCurrentFrames();
+    } else {
+      setReadyToSubmit(true);
+      setStatus('Recording stopped. Press submit to check your reply.');
+    }
+  }, [autoSubmit, isCountingDown, recording, submitCurrentFrames, takeFrame, resetFrameBuffer]);
 
   useEffect(() => {
     if (!isCountingDown) return undefined;
@@ -396,7 +403,26 @@ export default function Converse() {
               )}
             </div>
 
-            <div style={{ display: 'flex', gap: 8, marginTop: 'auto' }}>
+            <div style={{ display: 'flex', gap: 8, marginTop: 'auto', flexDirection: 'column' }}>
+              {/* Auto-submit toggle */}
+              <button
+                onClick={() => setAutoSubmit(v => !v)}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  width: '100%', padding: '10px 14px', borderRadius: 14,
+                  border: `1.5px solid ${autoSubmit ? 'rgba(52,211,153,0.5)' : 'rgba(255,255,255,0.12)'}`,
+                  background: autoSubmit ? 'rgba(52,211,153,0.12)' : 'rgba(255,255,255,0.05)',
+                  cursor: 'pointer', fontFamily: "'Nunito',sans-serif",
+                }}
+              >
+                <span style={{ fontSize: 12, fontWeight: 800, color: autoSubmit ? '#6ee7b7' : 'rgba(255,255,255,0.6)' }}>
+                  Send it for me!
+                </span>
+                <div style={{ position: 'relative', width: 36, height: 20, borderRadius: 99, background: autoSubmit ? '#34d399' : 'rgba(255,255,255,0.15)', border: `1.5px solid ${autoSubmit ? '#6ee7b7' : 'rgba(255,255,255,0.2)'}`, transition: 'background 0.25s' }}>
+                  <div style={{ position: 'absolute', top: 2, left: autoSubmit ? 16 : 2, width: 12, height: 12, borderRadius: '50%', background: 'white', boxShadow: '0 1px 3px rgba(0,0,0,0.4)', transition: 'left 0.25s cubic-bezier(0.34,1.56,0.64,1)' }} />
+                </div>
+              </button>
+              <div style={{ display: 'flex', gap: 8 }}>
               <button onClick={() => { resetFrameBuffer(); setLatestResult(null); setStatus('Reset — press record and try again.'); }}
                 style={{ flex: 1, border: 'none', borderRadius: 14, padding: '11px 12px', cursor: 'pointer', background: 'rgba(255,255,255,0.1)', color: 'white', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
                 <RefreshCw size={13} /> Retry
@@ -407,6 +433,7 @@ export default function Converse() {
                 style={{ flex: 1, border: 'none', borderRadius: 14, padding: '11px 12px', cursor: (!latestResult?.is_correct || currentIndex >= prompts.length - 1) ? 'not-allowed' : 'pointer', background: latestResult?.is_correct ? 'linear-gradient(135deg,#34d399,#22d3ee)' : 'rgba(255,255,255,0.08)', color: latestResult?.is_correct ? '#064e3b' : 'rgba(255,255,255,0.5)', fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, opacity: (!latestResult?.is_correct || currentIndex >= prompts.length - 1) ? 0.6 : 1 }}>
                 Next <ArrowRight size={14} />
               </button>
+              </div>
             </div>
           </div>
         </div>

@@ -1,10 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Settings, BookOpen, Trophy, Star, TrendingUp, Award, MessageCircle, ArrowRight, Target, Brain, Flame, Layers } from 'lucide-react';
+import { Settings, BookOpen, Trophy, Star, TrendingUp, Award, MessageCircle, ArrowRight } from 'lucide-react';
 import { getStoredStudyProgress, getVoyageStats, loadStudyProgress, getCurrentIslandId } from '../study/studyVoyage';
 import { useIslands } from '../../contexts/IslandsContext';
 import EmojiIcon from '../../components/EmojiIcon';
-import { computeStreak, isTodayComplete } from '../../lib/dailyChallenge';
 
 /* ── floating particle ── */
 const Particle = ({ x, y, size, delay, opacity }) => (
@@ -31,8 +30,6 @@ export default function Dashboard({ user }) {
   const initials = [profile.first_name?.[0], profile.last_name?.[0]].filter(Boolean).join('').toUpperCase() || displayName[0]?.toUpperCase() || 'D';
 
   const [progress, setProgress] = useState(() => getStoredStudyProgress());
-  const [dailyStreak] = useState(() => computeStreak());
-  const [dailyDone] = useState(() => isTodayComplete());
 
   useEffect(() => {
     let active = true;
@@ -251,77 +248,10 @@ export default function Dashboard({ user }) {
             >
               Start Diving <ArrowRight size={17} />
             </button>
-            <button onClick={() => navigate('/practice')}
-              style={{
-                flex: '0 0 auto', padding: '16px 20px', borderRadius: 18, border: '1.5px solid rgba(255,255,255,0.22)',
-                background: 'rgba(255,255,255,0.1)', color: 'white',
-                fontSize: 14, fontWeight: 900, cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                fontFamily: "'Nunito',sans-serif",
-              }}
-            >
-              <Target size={15} /> Free Drill
-            </button>
           </div>
         </div>
 
-        {/* ── Quick-play cards ── */}
-        <div style={{ display: 'flex', gap: 14, marginTop: 18, width: '100%', maxWidth: 760, flexWrap: 'wrap' }}>
 
-          {/* Sign Quiz */}
-          <button
-            onClick={() => navigate('/quiz')}
-            style={{ flex: '1 1 220px', padding: '18px 20px', borderRadius: 22, border: '1.5px solid rgba(244,114,182,0.35)', background: 'rgba(244,114,182,0.1)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 14, fontFamily: "'Nunito',sans-serif", transition: 'transform 0.18s ease, background 0.18s ease', textAlign: 'left' }}
-            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(244,114,182,0.2)'; e.currentTarget.style.transform = 'translateY(-3px)'; }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(244,114,182,0.1)'; e.currentTarget.style.transform = 'translateY(0)'; }}
-          >
-            <div style={{ width: 44, height: 44, borderRadius: 14, background: 'rgba(244,114,182,0.2)', border: '1px solid rgba(244,114,182,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <Brain size={22} color="#f472b6" />
-            </div>
-            <div>
-              <div style={{ fontSize: 15, fontWeight: 900, color: 'white', lineHeight: 1.1 }}>Sign Quiz</div>
-              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', fontWeight: 700, marginTop: 3 }}>Watch a sign · pick the word</div>
-            </div>
-          </button>
-
-          {/* Sign Match */}
-          <button
-            onClick={() => navigate('/match')}
-            style={{ flex: '1 1 220px', padding: '18px 20px', borderRadius: 22, border: '1.5px solid rgba(129,140,248,0.35)', background: 'rgba(129,140,248,0.1)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 14, fontFamily: "'Nunito',sans-serif", transition: 'transform 0.18s ease, background 0.18s ease', textAlign: 'left' }}
-            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(129,140,248,0.2)'; e.currentTarget.style.transform = 'translateY(-3px)'; }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(129,140,248,0.1)'; e.currentTarget.style.transform = 'translateY(0)'; }}
-          >
-            <div style={{ width: 44, height: 44, borderRadius: 14, background: 'rgba(129,140,248,0.2)', border: '1px solid rgba(129,140,248,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <Layers size={22} color="#818cf8" />
-            </div>
-            <div>
-              <div style={{ fontSize: 15, fontWeight: 900, color: 'white', lineHeight: 1.1 }}>Sign Match</div>
-              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', fontWeight: 700, marginTop: 3 }}>Flip cards · match signs</div>
-            </div>
-          </button>
-
-          {/* Daily Challenge */}
-          <button
-            onClick={() => navigate('/daily')}
-            style={{ flex: '1 1 220px', padding: '18px 20px', borderRadius: 22, border: `1.5px solid ${dailyDone ? 'rgba(52,211,153,0.4)' : 'rgba(249,115,22,0.35)'}`, background: dailyDone ? 'rgba(52,211,153,0.1)' : 'rgba(249,115,22,0.1)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 14, fontFamily: "'Nunito',sans-serif", transition: 'transform 0.18s ease, background 0.18s ease', textAlign: 'left' }}
-            onMouseEnter={e => { e.currentTarget.style.background = dailyDone ? 'rgba(52,211,153,0.18)' : 'rgba(249,115,22,0.2)'; e.currentTarget.style.transform = 'translateY(-3px)'; }}
-            onMouseLeave={e => { e.currentTarget.style.background = dailyDone ? 'rgba(52,211,153,0.1)' : 'rgba(249,115,22,0.1)'; e.currentTarget.style.transform = 'translateY(0)'; }}
-          >
-            <div style={{ width: 44, height: 44, borderRadius: 14, background: dailyDone ? 'rgba(52,211,153,0.2)' : 'rgba(249,115,22,0.2)', border: `1px solid ${dailyDone ? 'rgba(52,211,153,0.4)' : 'rgba(249,115,22,0.4)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <Flame size={22} color={dailyDone ? '#34d399' : '#f97316'} fill={dailyDone ? '#34d399' : undefined} />
-            </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 15, fontWeight: 900, color: 'white', lineHeight: 1.1, display: 'flex', alignItems: 'center', gap: 6 }}>
-                Daily Challenge
-                {dailyDone && <span style={{ fontSize: 10, fontWeight: 900, color: '#34d399', background: 'rgba(52,211,153,0.2)', border: '1px solid rgba(52,211,153,0.4)', borderRadius: 99, padding: '2px 7px', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Done</span>}
-              </div>
-              <div style={{ fontSize: 12, fontWeight: 700, marginTop: 3, display: 'flex', alignItems: 'center', gap: 4, color: 'rgba(255,255,255,0.55)' }}>
-                {dailyStreak > 0 && <><Flame size={11} color="#f97316" fill="#f97316" /><span style={{ color: '#fed7aa', fontWeight: 900 }}>{dailyStreak}</span><span>day streak ·</span></>}
-                5 signs today
-              </div>
-            </div>
-          </button>
-        </div>
 
         {/* ── achievement strip ── */}
         {stats.xp > 0 && (

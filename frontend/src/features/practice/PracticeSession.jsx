@@ -93,7 +93,7 @@ export default function PracticeSession() {
             {/* Status badge */}
             <div style={{ position: 'absolute', top: 14, left: 14, background: recording ? 'rgba(239,68,68,0.9)' : 'rgba(0,0,0,0.55)', backdropFilter: 'blur(8px)', borderRadius: 99, padding: '5px 12px', display: 'flex', alignItems: 'center', gap: 6 }}>
               <div style={{ width: 7, height: 7, borderRadius: '50%', background: recording ? 'white' : '#ef4444', animation: recording ? 'ps-blink 1s ease-in-out infinite' : undefined }} />
-              <span style={{ fontSize: 10, fontWeight: 900, color: 'white', letterSpacing: '0.12em', textTransform: 'uppercase' }}>{recording ? 'Recording' : 'Camera'}</span>
+              <span style={{ fontSize: 10, fontWeight: 900, color: 'white', letterSpacing: '0.12em', textTransform: 'uppercase' }}>{recording ? 'Recording' : 'Camera On'}</span>
             </div>
 
             {/* Controls bar */}
@@ -128,7 +128,7 @@ export default function PracticeSession() {
 
             {/* ASL hand gesture image */}
             <div>
-              <p style={{ margin: '0 0 6px', fontSize: 10, fontWeight: 900, color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase', letterSpacing: '0.14em' }}>Hand Gesture Reference</p>
+              <p style={{ margin: '0 0 6px', fontSize: 11, fontWeight: 900, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>How it looks</p>
               <div style={{ borderRadius: 14, overflow: 'hidden', background: 'rgba(255,255,255,0.95)', border: '1px solid rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', height: 110, boxShadow: '0 4px 16px rgba(0,0,0,0.25)' }}>
                 {imgSrc && imgOk ? (
                   <img key={currentSign.id} src={imgSrc} alt={`ASL ${currentSign.label}`} style={{ maxWidth: '85%', maxHeight: '85%', objectFit: 'contain' }} onError={() => setImgOk(false)} />
