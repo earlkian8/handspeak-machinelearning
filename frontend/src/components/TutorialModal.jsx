@@ -29,7 +29,7 @@ export function markTutorialSkipped() {
   try { localStorage.setItem(SKIP_KEY, 'true'); } catch {}
 }
 
-export default function TutorialModal({ word, isLetter = false, onProceed, onSkip }) {
+export default function TutorialModal({ word, displayWord, videoWord, isLetter = false, onProceed, onSkip }) {
   const [videoError, setVideoError] = useState(false);
   const videoRef = useRef(null);
 
@@ -45,8 +45,10 @@ export default function TutorialModal({ word, isLetter = false, onProceed, onSki
     onProceed();
   }, [onProceed]);
 
-  const videoUrl = word && !isLetter ? getVideoUrl(word) : null;
-  const alphaUrl = word && isLetter ? `${ALPHA_BASE}/${word.toLowerCase()}.gif` : null;
+  const headerWord = displayWord || word || '';
+  const mediaWord = videoWord || word || '';
+  const videoUrl = mediaWord && !isLetter ? getVideoUrl(mediaWord) : null;
+  const alphaUrl = mediaWord && isLetter ? `${ALPHA_BASE}/${mediaWord.toLowerCase()}.gif` : null;
 
   return (
     <div style={{
@@ -70,7 +72,7 @@ export default function TutorialModal({ word, isLetter = false, onProceed, onSki
             <div style={{ fontSize: 10, fontWeight: 900, color: '#67e8f9', letterSpacing: '0.15em', textTransform: 'uppercase' }}>
               Watch Tutorial
             </div>
-            <div style={{ fontSize: 22, fontWeight: 900, color: 'white', marginTop: 2, lineHeight: 1.1 }}>{word}</div>
+            <div style={{ fontSize: 22, fontWeight: 900, color: 'white', marginTop: 2, lineHeight: 1.1 }}>{headerWord}</div>
           </div>
           <button
             onClick={onSkip}
@@ -86,7 +88,7 @@ export default function TutorialModal({ word, isLetter = false, onProceed, onSki
             {isLetter && alphaUrl ? (
               <img
                 src={alphaUrl}
-                alt={`ASL sign for letter ${word?.toUpperCase()}`}
+                alt={`ASL sign for letter ${String(headerWord).toUpperCase()}`}
                 style={{ maxHeight: '100%', maxWidth: '100%', objectFit: 'contain' }}
               />
             ) : videoUrl && !videoError ? (
@@ -102,7 +104,7 @@ export default function TutorialModal({ word, isLetter = false, onProceed, onSki
               />
             ) : (
               <div style={{ textAlign: 'center', padding: 20 }}>
-                <div style={{ fontSize: 52, fontWeight: 900, color: '#0ea5e9', lineHeight: 1 }}>{word}</div>
+                <div style={{ fontSize: 52, fontWeight: 900, color: '#0ea5e9', lineHeight: 1 }}>{headerWord}</div>
                 <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 700, marginTop: 8 }}>ASL Sign — no media available</div>
               </div>
             )}

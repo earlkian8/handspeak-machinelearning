@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import YouTubeTutorial from '../../components/YouTubeTutorial';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { X, Circle, ArrowRight, CheckCircle, Lock, Waves, Zap, BookOpen, PlayCircle, Hand, Trophy, Flame, Bolt, Theater, Landmark, Shield, Heart, MapPin, Crown } from 'lucide-react';
 import TipBox from '../../components/TipBox';
 import Camera from '../../components/Camera';
@@ -33,6 +32,7 @@ const COUNTDOWN_SECONDS = 3;
 export default function StudySession() {
   const { islandId, levelId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { getIslandById } = useIslands();
   const [recording, setRecording] = useState(false);
   const [isCountingDown, setIsCountingDown] = useState(false);
@@ -47,6 +47,7 @@ export default function StudySession() {
   const [latestResult, setLatestResult] = useState(null);
   const [matchStreak, setMatchStreak] = useState(0);
   const [capturedFrames, setCapturedFrames] = useState(0);
+  const [autoSubmit, setAutoSubmit] = useState(false);
   const [levelStreak, setLevelStreak] = useState(() => {
     try { return parseInt(sessionStorage.getItem('ss_level_streak') || '0', 10); } catch { return 0; }
   });
@@ -89,6 +90,12 @@ export default function StudySession() {
     return lookup[iconName] || null;
   }, [bossInfo?.icon]);
 
+  const preferredWord = useMemo(() => {
+    const params = new URLSearchParams(location.search || '');
+    const raw = params.get('word');
+    return raw ? String(raw).toLowerCase() : '';
+  }, [location.search]);
+
   useEffect(() => {
     if (!activeLevel) return;
     const pool = activeLevel.candidatePhrases || activeLevel.candidate_phrases || [];
@@ -98,10 +105,27 @@ export default function StudySession() {
       setWordIndex(0);
       return;
     }
-    const shuffled = [...pool].sort(() => Math.random() - 0.5);
-    setLevelWords(shuffled.slice(0, Math.min(total, shuffled.length)));
+    const totalCount = Math.min(total, pool.length);
+    const matchIndex = preferredWord
+      ? pool.findIndex((phrase) => {
+          const candidates = [phrase?.word, phrase?.id, phrase?.label]
+            .filter(Boolean)
+            .map((value) => String(value).toLowerCase());
+          return candidates.includes(preferredWord);
+        })
+      : -1;
+    if (matchIndex >= 0) {
+      const preferred = pool[matchIndex];
+      const rest = pool.filter((_, idx) => idx !== matchIndex);
+      const shuffledRest = [...rest].sort(() => Math.random() - 0.5);
+      const ordered = [preferred, ...shuffledRest].slice(0, totalCount);
+      setLevelWords(ordered);
+    } else {
+      const shuffled = [...pool].sort(() => Math.random() - 0.5);
+      setLevelWords(shuffled.slice(0, totalCount));
+    }
     setWordIndex(0);
-  }, [activeLevel?.id]);
+  }, [activeLevel?.id, preferredWord]);
 
   // Boss intro overlay
   useEffect(() => {
@@ -158,6 +182,7 @@ export default function StudySession() {
   const panelTitle = activePhrase?.label || activeLevel.label;
   const panelDescription = activePhrase?.description || activeLevel.description;
   const panelTip = activePhrase?.tip || activeLevel.tip;
+  const tutorialWord = activePhrase?.word || activePhrase?.id || panelTitle;
 
   const targetSource = activePhrase?.word || panelTitle || '';
   const targetWord = targetSource ? String(targetSource).replace(/\s+/g, '').toUpperCase() : '';
@@ -178,15 +203,15 @@ export default function StudySession() {
     clearProcessingTimers();
     setShowProcessingModal(true);
     setProcessingPhase('waiting');
-    setProcessingMessage('Waiting for your recording package...');
+    setProcessingMessage('Getting your video ready...');
 
     const readingTimer = window.setTimeout(() => {
       setProcessingPhase('reading');
-      setProcessingMessage('Reading captured frames...');
+      setProcessingMessage('Looking at your video...');
     }, 320);
     const checkingTimer = window.setTimeout(() => {
       setProcessingPhase('checking');
-      setProcessingMessage('Checking your gesture...');
+      setProcessingMessage('Checking your sign...');
     }, 760);
 
     processingTimersRef.current.push(readingTimer, checkingTimer);
@@ -210,7 +235,7 @@ export default function StudySession() {
   const verifyCurrentFrames = useCallback(async (debugOverrideWord = null) => {
     if (isSubmittingRef.current || !targetWord || !levelUnlocked) return;
     if (frameBufferRef.current.length < minFramesForVerify) {
-      setStatus(`Need ${minFramesForVerify - frameBufferRef.current.length} more frame(s) before checking`);
+      setStatus(`Almost there! Hold still for ${minFramesForVerify - frameBufferRef.current.length} more frame(s).`);
       return;
     }
 
@@ -235,30 +260,28 @@ export default function StudySession() {
         if (nextStreak >= REQUIRED_STREAK) {
           setMatchStreak(0);
           setRecording(false);
-          setStatus(`Correct sign ${REQUIRED_STREAK}/${REQUIRED_STREAK}. Moving on...`);
-          finishProcessingFeedback(true, `Correct! Streak ${REQUIRED_STREAK}/${REQUIRED_STREAK}.`);
+          setStatus(`Awesome! You nailed it. Next word!`);
+          finishProcessingFeedback(true, 'Great job! You nailed it.');
           advanceWord();
         } else {
           setMatchStreak(nextStreak);
-          setStatus(`Correct sign ${nextStreak}/${REQUIRED_STREAK}. Record again then submit.`);
-          finishProcessingFeedback(true, `Correct! Streak ${nextStreak}/${REQUIRED_STREAK}.`);
+          setStatus(`Nice! One more like that.`);
+          finishProcessingFeedback(true, 'Nice! One more like that.');
         }
       } else {
-        const similarity = Number(response.similarity ?? 0).toFixed(3);
-        const bestMatch = String(response.best_match || 'unknown').toUpperCase();
         setMatchStreak(0);
         // Wrong answer — break the level streak
         levelStreakRef.current = 0;
         setLevelStreak(0);
         try { sessionStorage.setItem('ss_level_streak', '0'); } catch {}
-        setStatus(`Wrong gesture. Closest: ${bestMatch} · Similarity ${similarity}`);
-        finishProcessingFeedback(false, `Wrong gesture. Closest: ${bestMatch} · Similarity ${similarity}`);
+        setStatus(`Almost! Try ${panelTitle} again.`);
+        finishProcessingFeedback(false, `Almost! Try ${panelTitle} again.`);
       }
     } catch (error) {
       setMatchStreak(0);
-      setStatus(error.message || 'Verification failed');
+      setStatus('Oops! Something went wrong. Try again.');
       setReadyToSubmit(true);
-      finishProcessingFeedback(false, error.message || 'Could not submit this recording.');
+      finishProcessingFeedback(false, 'We could not check it. Please try again.');
     } finally {
       isSubmittingRef.current = false;
     }
@@ -266,7 +289,7 @@ export default function StudySession() {
 
   const handleRecordToggle = useCallback(() => {
     if (!levelUnlocked) {
-      setStatus('This level is locked. Complete previous levels first.');
+      setStatus('This level is locked. Finish the earlier level first.');
       return;
     }
     if (isSubmittingRef.current || isCountingDown || showSuccess) return;
@@ -300,20 +323,25 @@ export default function StudySession() {
 
     if (frameBufferRef.current.length === 0) {
       setReadyToSubmit(false);
-      setStatus('No frames captured. The guide circle is only a helper, try centering your hand and hold for 1 second.');
+      setStatus('We could not see your sign. Center your hand and hold still.');
       return;
     }
 
     setReadyToSubmit(true);
-    setStatus('Recording stopped. Press submit to verify.');
-  }, [frameBufferSize, levelUnlocked, minFramesForVerify, recording, showSuccess, takeFrame, isCountingDown]);
+    setStatus(autoSubmit ? 'All set! Checking for you...' : 'All set! Tap Check.');
+    if (autoSubmit) {
+      window.setTimeout(() => {
+        verifyCurrentFrames();
+      }, 250);
+    }
+  }, [autoSubmit, frameBufferSize, levelUnlocked, minFramesForVerify, recording, showSuccess, takeFrame, isCountingDown, verifyCurrentFrames]);
 
   useEffect(() => {
     if (!isCountingDown) return undefined;
     if (countdown <= 0) {
       setIsCountingDown(false);
       setRecording(true);
-      setStatus('Recording... hold the sign steady');
+      setStatus('Recording... keep your sign steady');
       return undefined;
     }
 
@@ -351,9 +379,9 @@ export default function StudySession() {
       setCapturedFrames(frameBufferRef.current.length);
 
       if (frameBufferRef.current.length < minFramesForVerify) {
-        setStatus(`Collecting frames ${frameBufferRef.current.length}/${minFramesForVerify}...`);
+        setStatus(`Hold still... ${frameBufferRef.current.length}/${minFramesForVerify}`);
       } else {
-        setStatus(`Frames ready ${frameBufferRef.current.length}/${minFramesForVerify}. Tap stop when done.`);
+        setStatus('Ready! Tap stop when you are done.');
       }
     }, captureIntervalMs);
 
@@ -403,7 +431,7 @@ export default function StudySession() {
     setWordIndex((value) => value + 1);
     setLatestResult(null);
     setMatchStreak(0);
-    setStatus('Great! Next word ready.');
+    setStatus('Great job! Next word ready.');
   };
 
   return (
@@ -687,11 +715,23 @@ export default function StudySession() {
             </button>
             {readyToSubmit && !showSuccess && (
               <button onClick={() => verifyCurrentFrames()} disabled={isSubmittingRef.current || isCountingDown} style={{ border: 'none', borderRadius: 99, padding: '10px 20px', cursor: 'pointer', background: 'linear-gradient(135deg,#34d399,#22d3ee)', color: '#064e3b', fontWeight: 900, fontSize: 12, boxShadow: '0 4px 16px rgba(52,211,153,0.3)' }}>
-                <Zap size={13} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} /> Submit
+                <Zap size={13} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} /> Check
               </button>
             )}
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 12px', borderRadius: 999, background: autoSubmit ? 'rgba(52,211,153,0.15)' : 'rgba(255,255,255,0.08)', border: `1px solid ${autoSubmit ? 'rgba(52,211,153,0.4)' : 'rgba(255,255,255,0.14)'}`, color: autoSubmit ? '#6ee7b7' : 'rgba(255,255,255,0.8)', fontSize: 12, fontWeight: 800, cursor: 'pointer', transition: 'all 0.2s ease' }}>
+              <span style={{ position: 'relative', width: 34, height: 18, borderRadius: 999, background: autoSubmit ? '#34d399' : 'rgba(255,255,255,0.18)', border: `1px solid ${autoSubmit ? '#6ee7b7' : 'rgba(255,255,255,0.2)'}`, transition: 'all 0.2s ease', flexShrink: 0 }}>
+                <span style={{ position: 'absolute', top: 2, left: autoSubmit ? 18 : 2, width: 12, height: 12, borderRadius: '50%', background: 'white', transition: 'left 0.2s ease' }} />
+              </span>
+              Send it for me!
+              <input
+                type="checkbox"
+                checked={autoSubmit}
+                onChange={(event) => setAutoSubmit(event.target.checked)}
+                style={{ display: 'none' }}
+              />
+            </label>
             <div style={{ position: 'absolute', top: -28, left: '50%', transform: 'translateX(-50%)', background: 'rgba(0,0,0,0.6)', borderRadius: 8, padding: '3px 10px', color: 'rgba(255,255,255,0.6)', fontSize: 11, fontWeight: 800, whiteSpace: 'nowrap' }}>
-              Frames: {capturedFrames}/{minFramesForVerify}
+              {capturedFrames < minFramesForVerify ? `Keep holding... ${capturedFrames}/${minFramesForVerify}` : 'Ready!'}
             </div>
           </div>
         </div>
@@ -707,43 +747,71 @@ export default function StudySession() {
             <p style={{ margin: '6px 0 0', fontSize: 12, color: 'rgba(255,255,255,0.5)', fontWeight: 700 }}>{panelDescription}</p>
           </div>
 
-          <YouTubeTutorial word={panelTitle} isLetter={isLetterTarget} />
-
           <TipBox tip={panelTip} />
 
+          {/* Kid-friendly result card */}
           <div style={{
-            borderRadius: 14,
+            borderRadius: 18,
             background: latestResult
               ? latestResult.is_match
-                ? 'rgba(34,197,94,0.16)'
-                : 'rgba(239,68,68,0.16)'
-              : 'rgba(255,255,255,0.08)',
+                ? 'linear-gradient(135deg,rgba(52,211,153,0.18),rgba(34,211,238,0.12))'
+                : 'linear-gradient(135deg,rgba(239,68,68,0.18),rgba(249,115,22,0.1))'
+              : 'rgba(255,255,255,0.06)',
             border: latestResult
               ? latestResult.is_match
-                ? '1px solid rgba(74,222,128,0.35)'
-                : '1px solid rgba(248,113,113,0.4)'
-              : '1px solid rgba(255,255,255,0.14)',
-            padding: '11px 12px',
+                ? '1.5px solid rgba(52,211,153,0.4)'
+                : '1.5px solid rgba(239,68,68,0.4)'
+              : '1.5px solid rgba(255,255,255,0.1)',
+            padding: '14px 16px',
             display: 'flex',
             flexDirection: 'column',
-            gap: 6,
+            gap: 8,
+            textAlign: 'center',
+            transition: 'all 0.3s ease',
           }}>
-            <span style={{ fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 900, color: 'rgba(255,255,255,0.56)' }}>
-              Live Verification
-            </span>
-            <p style={{ margin: 0, fontSize: 14, color: latestResult ? (latestResult.is_match ? '#bbf7d0' : '#fecaca') : 'white', fontWeight: 800 }}>{status}</p>
-            <p style={{ margin: 0, fontSize: 12, color: latestResult ? (latestResult.is_match ? 'rgba(187,247,208,0.9)' : 'rgba(254,202,202,0.9)') : 'rgba(255,255,255,0.68)' }}>
-              {latestResult
-                ? `Best: ${String(latestResult.best_match || 'unknown').toUpperCase()} · Similarity: ${Number(latestResult.similarity ?? 0).toFixed(3)}`
-                : 'Press record and hold the target sign in frame.'}
-            </p>
-            <p style={{ margin: 0, fontSize: 11, color: 'rgba(255,255,255,0.56)' }}>
-              Model: {verifyModelType === 'static' ? 'Static (letter)' : 'Dynamic (word)'}
-            </p>
-            {latestResult && (
-              <p style={{ margin: 0, fontSize: 12, color: latestResult.is_match ? '#86efac' : '#fca5a5', fontWeight: 800 }}>
-                Streak: {matchStreak}/{REQUIRED_STREAK}{latestResult.is_match ? '' : ' (reset on miss)'}
-              </p>
+            {!latestResult && (
+              <>
+                <div style={{ fontSize: 32, fontWeight: 900, color: 'rgba(255,255,255,0.18)', lineHeight: 1 }}>?</div>
+                <p style={{ margin: 0, fontSize: 15, color: 'rgba(255,255,255,0.55)', fontWeight: 800 }}>
+                  {recording
+                    ? 'Hold your sign steady!'
+                    : readyToSubmit
+                      ? (autoSubmit ? 'Sending your video...' : 'Tap Check when ready!')
+                      : isCountingDown
+                        ? `Get ready... ${countdown}`
+                        : 'Tap the button to start!'}
+                </p>
+              </>
+            )}
+            {latestResult && latestResult.is_match && (
+              <>
+                <div style={{ fontSize: 28, fontWeight: 900, color: '#34d399', lineHeight: 1 }}>Well done!</div>
+                <p style={{ margin: 0, fontSize: 14, color: 'rgba(167,243,208,0.9)', fontWeight: 800 }}>
+                  You got it right! Do it {REQUIRED_STREAK - matchStreak} more time{REQUIRED_STREAK - matchStreak !== 1 ? 's' : ''} to pass!
+                </p>
+                {/* Streak progress pips */}
+                <div style={{ display: 'flex', gap: 6, justifyContent: 'center', marginTop: 2 }}>
+                  {Array.from({ length: REQUIRED_STREAK }, (_, i) => (
+                    <div key={i} style={{
+                      width: 28, height: 8, borderRadius: 99,
+                      background: i < matchStreak ? '#34d399' : 'rgba(255,255,255,0.15)',
+                      boxShadow: i < matchStreak ? '0 0 6px rgba(52,211,153,0.6)' : 'none',
+                      transition: 'all 0.25s ease',
+                    }} />
+                  ))}
+                </div>
+              </>
+            )}
+            {latestResult && !latestResult.is_match && (
+              <>
+                <div style={{ fontSize: 24, fontWeight: 900, color: '#fca5a5', lineHeight: 1 }}>Try again!</div>
+                <p style={{ margin: 0, fontSize: 14, color: 'rgba(254,202,202,0.85)', fontWeight: 800 }}>
+                  That looked a bit like "{String(latestResult.best_match || '?').toUpperCase()}".
+                </p>
+                <p style={{ margin: 0, fontSize: 12, color: 'rgba(254,202,202,0.6)', fontWeight: 700 }}>
+                  Keep trying, you can do it!
+                </p>
+              </>
             )}
           </div>
 
@@ -826,7 +894,7 @@ export default function StudySession() {
             onMouseEnter={e => { if (!(!levelUnlocked || alreadyCompleted || !latestResult?.is_match)) { e.currentTarget.style.transform = 'translateY(-2px)'; } }}
             onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; }}
           >
-            <>Verified Complete <ArrowRight size={18} /></>
+            <>I am done! <ArrowRight size={18} /></>
           </button>
         </div>
       </div>

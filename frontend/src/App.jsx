@@ -15,6 +15,7 @@ import StudyIsland from './features/study/StudyIsland';
 import StudySession from './features/study/StudySession';
 import IslandsHub from './features/islands/IslandsHub';
 import IslandOverview from './features/islands/IslandOverview';
+import IslandChallenge from './features/islands/IslandChallenge';
 import Converse from './features/converse/Converse';
 import SignQuiz from './features/quiz/SignQuiz';
 import DailyChallenge from './features/daily/DailyChallenge';
@@ -79,6 +80,7 @@ function App() {
           {/* Unified Islands journey — Phase 1 */}
           <Route path="/islands" element={guard(<IslandsHub />)} />
           <Route path="/islands/:islandId" element={guard(<IslandOverview />)} />
+          <Route path="/islands/:islandId/challenge" element={guard(<IslandChallenge />)} />
           <Route path="/converse" element={guard(<Converse />)} />
           <Route path="/quiz" element={guard(<SignQuiz />)} />
           <Route path="/daily" element={guard(<DailyChallenge />)} />
