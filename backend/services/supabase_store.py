@@ -9,6 +9,8 @@ from functools import lru_cache
 from threading import Lock
 from typing import Any
 import os
+import re
+import secrets
 
 import bcrypt
 from psycopg import connect
@@ -80,9 +82,13 @@ class SupabaseStore:
                 middle_name TEXT,
                 last_name TEXT,
                 nickname TEXT,
+                is_guest BOOLEAN NOT NULL DEFAULT FALSE,
                 created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                 updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
             );
+
+            ALTER TABLE app_users
+                ADD COLUMN IF NOT EXISTS is_guest BOOLEAN NOT NULL DEFAULT FALSE;
 
             CREATE TABLE IF NOT EXISTS study_progress (
                 user_id BIGINT PRIMARY KEY REFERENCES app_users(id) ON DELETE CASCADE,
@@ -194,6 +200,28 @@ class SupabaseStore:
             with self._connect() as connection:
                 with connection.cursor() as cursor:
                     cursor.execute(schema_sql)
+                    cursor.execute(
+                        """
+                        SELECT COUNT(*)
+                        FROM (
+                            SELECT LOWER(nickname) AS nickname_key
+                            FROM app_users
+                            WHERE nickname IS NOT NULL
+                            GROUP BY LOWER(nickname)
+                            HAVING COUNT(*) > 1
+                        ) dupes
+                        """
+                    )
+                    duplicates_row = cursor.fetchone()
+                    duplicates = duplicates_row["count"] if duplicates_row else 0
+                    if duplicates == 0:
+                        cursor.execute(
+                            """
+                            CREATE UNIQUE INDEX IF NOT EXISTS app_users_nickname_unique
+                                ON app_users (LOWER(nickname))
+                                WHERE nickname IS NOT NULL
+                            """
+                        )
                     self._seed_practice_signs(cursor)
                 connection.commit()
 
@@ -284,7 +312,21 @@ class SupabaseStore:
             "last_name": row.get("last_name"),
             "nickname": row.get("nickname"),
             "profile_complete": profile_complete,
+            "is_guest": bool(row.get("is_guest", False)),
         }
+
+    def _sanitize_nickname(self, nickname: str) -> str:
+        cleaned = re.sub(r"\s+", " ", nickname.strip())
+        if not cleaned:
+            raise ValueError("Nickname is required")
+        return cleaned
+
+    def _generate_guest_email(self, prefix: str) -> str:
+        token = secrets.token_hex(8)
+        return f"{prefix}+{token}@handspeak.local"
+
+    def _generate_password(self) -> str:
+        return secrets.token_urlsafe(16)
 
     def create_user(self, email: str, password: str) -> dict[str, Any]:
         _validate_password_length(password)
@@ -302,6 +344,63 @@ class SupabaseStore:
 
         return self._format_user(row)  # type: ignore[return-value]
 
+    def create_guest_user(self, nickname: str | None) -> dict[str, Any]:
+        password = self._generate_password()
+        password_hash = _hash_password(password)
+        if nickname:
+            nickname = self._sanitize_nickname(nickname)
+            if self.get_user_by_nickname(nickname):
+                raise ValueError("Nickname already in use")
+
+        for attempt in range(10):
+            if not nickname:
+                nickname_to_use = f"Diver {secrets.randbelow(9000) + 1000}"
+                if self.get_user_by_nickname(nickname_to_use):
+                    continue
+            else:
+                nickname_to_use = nickname
+
+            email = self._generate_guest_email("guest")
+            query = """
+                INSERT INTO app_users (email, password_hash, nickname, is_guest)
+                VALUES (%s, %s, %s, TRUE)
+                RETURNING id, email, first_name, middle_name, last_name, nickname, is_guest
+            """
+            try:
+                row = self._fetchone(query, (email, password_hash, nickname_to_use))
+                return self._format_user(row)  # type: ignore[return-value]
+            except UniqueViolation as error:
+                if attempt >= 9:
+                    raise ValueError("Unable to create guest account") from error
+                continue
+
+        raise ValueError("Unable to create guest account")
+
+    def create_kid_user(self, nickname: str) -> dict[str, Any]:
+        nickname = self._sanitize_nickname(nickname)
+        if self.get_user_by_nickname(nickname):
+            raise ValueError("Nickname already in use")
+
+        password = self._generate_password()
+        password_hash = _hash_password(password)
+
+        query = """
+            INSERT INTO app_users (email, password_hash, nickname, is_guest)
+            VALUES (%s, %s, %s, FALSE)
+            RETURNING id, email, first_name, middle_name, last_name, nickname, is_guest
+        """
+        for attempt in range(6):
+            email = self._generate_guest_email("kid")
+            try:
+                row = self._fetchone(query, (email, password_hash, nickname))
+                return self._format_user(row)  # type: ignore[return-value]
+            except UniqueViolation as error:
+                if attempt >= 5:
+                    raise ValueError("Unable to create account") from error
+                continue
+
+        raise ValueError("Unable to create account")
+
     def get_user_by_email(self, email: str) -> dict[str, Any] | None:
         query = """
             SELECT id, email, first_name, middle_name, last_name, nickname, password_hash
@@ -310,9 +409,18 @@ class SupabaseStore:
         """
         return self._fetchone(query, (email.strip().lower(),))
 
+    def get_user_by_nickname(self, nickname: str) -> dict[str, Any] | None:
+        query = """
+            SELECT id, email, first_name, middle_name, last_name, nickname, is_guest
+            FROM app_users
+            WHERE LOWER(nickname) = LOWER(%s)
+        """
+        row = self._fetchone(query, (nickname.strip(),))
+        return self._format_user(row)
+
     def get_user_by_id(self, user_id: int) -> dict[str, Any] | None:
         query = """
-            SELECT id, email, first_name, middle_name, last_name, nickname, password_hash
+            SELECT id, email, first_name, middle_name, last_name, nickname, password_hash, is_guest
             FROM app_users
             WHERE id = %s
         """
@@ -337,22 +445,53 @@ class SupabaseStore:
                 nickname = %s,
                 updated_at = NOW()
             WHERE id = %s
-            RETURNING id, email, first_name, middle_name, last_name, nickname
+            RETURNING id, email, first_name, middle_name, last_name, nickname, is_guest
         """
-        row = self._fetchone(
-            query,
-            (
-                profile.get("first_name"),
-                profile.get("middle_name") or "",
-                profile.get("last_name"),
-                profile.get("nickname"),
-                user_id,
-            ),
-        )
+        try:
+            row = self._fetchone(
+                query,
+                (
+                    profile.get("first_name"),
+                    profile.get("middle_name") or "",
+                    profile.get("last_name"),
+                    profile.get("nickname"),
+                    user_id,
+                ),
+            )
+        except UniqueViolation as error:
+            raise ValueError("Nickname already in use") from error
         if not row:
             raise LookupError("User not found")
 
         return self._format_user(row)  # type: ignore[return-value]
+
+    def upgrade_account(self, user_id: int, email: str, password: str) -> dict[str, Any]:
+        _validate_password_length(password)
+        password_hash = _hash_password(password)
+        query = """
+            UPDATE app_users
+            SET email = %s,
+                password_hash = %s,
+                is_guest = FALSE,
+                updated_at = NOW()
+            WHERE id = %s
+            RETURNING id, email, first_name, middle_name, last_name, nickname, is_guest
+        """
+        try:
+            row = self._fetchone(query, (email.strip().lower(), password_hash, user_id))
+        except UniqueViolation as error:
+            raise ValueError("Email already registered") from error
+        if not row:
+            raise LookupError("User not found")
+
+        return self._format_user(row)  # type: ignore[return-value]
+
+    def delete_guest_user(self, user_id: int) -> None:
+        query = """
+            DELETE FROM app_users
+            WHERE id = %s AND is_guest = TRUE
+        """
+        self._execute(query, (user_id,))
 
     def get_or_create_progress(self, user_id: int) -> dict[str, Any]:
         row = self._fetchone(
@@ -390,7 +529,6 @@ class SupabaseStore:
         )
         return [dict(row["payload"]) for row in rows]
 
-    # ── Conversation sessions (Phase 1 Reply Quest) ──────────────────────
     def create_conversation_session(
         self,
         *,
@@ -523,7 +661,6 @@ class SupabaseStore:
         progress = {**progress, "conversation": conversation}
         return self.save_progress(user_id, progress)
 
-    # ── Multi-turn chain sessions (Phase 3) ──────────────────────────────
     def create_chain_session(
         self,
         *,
@@ -655,9 +792,6 @@ class SupabaseStore:
                 Json(response_payload),
             ),
         )
-
-
-    # ── Achievements ─────────────────────────────────────────────────────────
 
     def get_user_achievements(self, user_id: int) -> list[str]:
         """Return list of achievement_ids already earned by the user."""

@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import YouTubeTutorial from '../../components/YouTubeTutorial';
 import { useParams, useNavigate } from 'react-router-dom';
-import { X, Circle, ArrowRight, CheckCircle, Lock, Waves, Zap, BookOpen, PlayCircle, Hand, Trophy } from 'lucide-react';
+import { X, Circle, ArrowRight, CheckCircle, Lock, Waves, Zap, BookOpen, PlayCircle, Hand, Trophy, Flame, Bolt, Theater, Landmark, Shield, Heart, MapPin, Crown } from 'lucide-react';
 import TipBox from '../../components/TipBox';
 import Camera from '../../components/Camera';
 import GestureProcessingModal from '../../components/GestureProcessingModal';
@@ -65,10 +65,43 @@ export default function StudySession() {
   const island = getIslandById(islandId);
   const phraseLevel = island?.levels.find((level) => level.id === levelId) || null;
   const activeLevel = phraseLevel;
+  const [levelWords, setLevelWords] = useState([]);
+  const [wordIndex, setWordIndex] = useState(0);
+  const activePhrase = useMemo(() => {
+    if (!levelWords.length) return null;
+    return levelWords[Math.min(wordIndex, levelWords.length - 1)] || null;
+  }, [levelWords, wordIndex]);
   const phraseIndex = island?.levels.findIndex((level) => level.id === levelId) ?? -1;
   const isBoss = island ? isBossLevel(phraseIndex, island.levels.length) : false;
   const bossInfo = island?.boss || null;
   const [showBossIntro, setShowBossIntro] = useState(false);
+
+  const bossIcon = useMemo(() => {
+    const iconName = bossInfo?.icon || '';
+    const lookup = {
+      bolt: <Bolt size={36} color="white" />,
+      theater: <Theater size={36} color="white" />,
+      landmark: <Landmark size={36} color="white" />,
+      shield: <Shield size={36} color="white" />,
+      heart: <Heart size={36} color="white" />,
+      'map-pin': <MapPin size={36} color="white" />,
+    };
+    return lookup[iconName] || null;
+  }, [bossInfo?.icon]);
+
+  useEffect(() => {
+    if (!activeLevel) return;
+    const pool = activeLevel.candidatePhrases || activeLevel.candidate_phrases || [];
+    const total = activeLevel.wordCount || activeLevel.word_count || 1;
+    if (!Array.isArray(pool) || pool.length === 0) {
+      setLevelWords([]);
+      setWordIndex(0);
+      return;
+    }
+    const shuffled = [...pool].sort(() => Math.random() - 0.5);
+    setLevelWords(shuffled.slice(0, Math.min(total, shuffled.length)));
+    setWordIndex(0);
+  }, [activeLevel?.id]);
 
   // Boss intro overlay
   useEffect(() => {
@@ -122,11 +155,12 @@ export default function StudySession() {
   const levelUnlocked = islandUnlocked && phraseUnlocked;
   const alreadyCompleted = isLevelCompleted(progress, island.id, activeLevel.id);
 
-  const panelTitle = activeLevel.label;
-  const panelDescription = activeLevel.description;
-  const panelTip = activeLevel.tip;
+  const panelTitle = activePhrase?.label || activeLevel.label;
+  const panelDescription = activePhrase?.description || activeLevel.description;
+  const panelTip = activePhrase?.tip || activeLevel.tip;
 
-  const targetWord = phraseLevel?.label ? String(phraseLevel.label).replace(/\s+/g, '').toUpperCase() : '';
+  const targetSource = activePhrase?.word || panelTitle || '';
+  const targetWord = targetSource ? String(targetSource).replace(/\s+/g, '').toUpperCase() : '';
   const isLetterTarget = targetWord.length === 1;
   const verifyModelType = isLetterTarget ? 'static' : 'dynamic';
   const verifyEndpoint = isLetterTarget ? '/api/gesture/verify/static' : '/api/gesture/verify/dynamic';
@@ -201,9 +235,9 @@ export default function StudySession() {
         if (nextStreak >= REQUIRED_STREAK) {
           setMatchStreak(0);
           setRecording(false);
-          setStatus(`Correct sign ${REQUIRED_STREAK}/${REQUIRED_STREAK}. Completing level...`);
-          finishProcessingFeedback(true, `Correct! Streak ${REQUIRED_STREAK}/${REQUIRED_STREAK}. Level complete.`);
-          markComplete();
+          setStatus(`Correct sign ${REQUIRED_STREAK}/${REQUIRED_STREAK}. Moving on...`);
+          finishProcessingFeedback(true, `Correct! Streak ${REQUIRED_STREAK}/${REQUIRED_STREAK}.`);
+          advanceWord();
         } else {
           setMatchStreak(nextStreak);
           setStatus(`Correct sign ${nextStreak}/${REQUIRED_STREAK}. Record again then submit.`);
@@ -302,7 +336,7 @@ export default function StudySession() {
     setCountdown(0);
     clearProcessingTimers();
     setShowProcessingModal(false);
-  }, [clearProcessingTimers, levelId]);
+  }, [clearProcessingTimers, levelId, wordIndex]);
 
   useEffect(() => {
     if (!recording || !levelUnlocked || !targetWord) return undefined;
@@ -357,6 +391,21 @@ export default function StudySession() {
     }, 1800);
   };
 
+  const advanceWord = () => {
+    if (!levelWords.length) {
+      markComplete();
+      return;
+    }
+    if (wordIndex + 1 >= levelWords.length) {
+      markComplete();
+      return;
+    }
+    setWordIndex((value) => value + 1);
+    setLatestResult(null);
+    setMatchStreak(0);
+    setStatus('Great! Next word ready.');
+  };
+
   return (
     <div style={{
       position: 'fixed', inset: 0, zIndex: 50,
@@ -406,7 +455,7 @@ export default function StudySession() {
                 boxShadow: isBoss ? '0 0 40px rgba(251,191,36,0.5)' : '0 0 32px rgba(52,211,153,0.4)',
               }}>
                 {isBoss
-                  ? <span style={{ fontSize: 44 }}>{bossInfo?.icon || '👑'}</span>
+                  ? (bossIcon || <Crown size={44} color="white" />)
                   : <CheckCircle size={48} color="white" />}
               </div>
             </div>
@@ -416,12 +465,12 @@ export default function StudySession() {
               fontSize: isBoss ? 30 : 26, fontWeight: 900, color: 'white',
               margin: '0 0 6px', textShadow: '0 2px 12px rgba(0,0,0,0.5)',
             }}>
-              {isBoss ? '🏆 ISLAND CONQUERED!' : '✨ Level Complete!'}
+              {isBoss ? 'ISLAND CONQUERED!' : 'Level Complete!'}
             </p>
 
             {/* Subtitle */}
             <p style={{ fontSize: 15, color: 'rgba(255,255,255,0.7)', margin: '0 0 18px', fontWeight: 700, lineHeight: 1.5 }}>
-              {isBoss ? 'Amazing! You conquered the final challenge!' : `You mastered the sign for "${activeLevel?.label}"`}
+              {isBoss ? 'Amazing! You conquered the final challenge!' : `You mastered the sign for "${panelTitle}"`}
             </p>
 
             {/* XP Reward card */}
@@ -437,7 +486,7 @@ export default function StudySession() {
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 boxShadow: '0 4px 12px rgba(251,191,36,0.3)',
               }}>
-                <span style={{ fontSize: 16, fontWeight: 900, color: '#000' }}>⚡</span>
+                <Bolt size={16} color="#000" />
               </div>
               <div style={{ textAlign: 'left' }}>
                 <div style={{ fontSize: 10, fontWeight: 900, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.15em' }}>Reward</div>
@@ -488,18 +537,20 @@ export default function StudySession() {
 
           {/* Lightning bolts */}
           {['15%','80%','50%'].map((left, i) => (
-            <div key={i} style={{ position: 'absolute', top: 0, left, fontSize: 28, animation: `boss-lightning ${0.4 + i * 0.15}s ease-out ${i * 0.12}s both`, opacity: 0, pointerEvents: 'none' }}>⚡</div>
+            <div key={i} style={{ position: 'absolute', top: 0, left, animation: `boss-lightning ${0.4 + i * 0.15}s ease-out ${i * 0.12}s both`, opacity: 0, pointerEvents: 'none' }}>
+              <Bolt size={28} color="#fbbf24" />
+            </div>
           ))}
 
           <div style={{ textAlign: 'center', animation: 'boss-slam 0.5s cubic-bezier(0.22,1,0.36,1)', position: 'relative', zIndex: 2 }}>
             {/* Warning label */}
             <div style={{ fontSize: 10, fontWeight: 900, color: '#ef4444', letterSpacing: '0.4em', textTransform: 'uppercase', marginBottom: 16, animation: 'boss-flicker 0.15s ease-in-out infinite alternate' }}>
-              ⚠ FINAL CHALLENGE ⚠
+              FINAL CHALLENGE
             </div>
 
             {/* Boss icon - BIG */}
             <div style={{ fontSize: 88, lineHeight: 1, marginBottom: 16, filter: 'drop-shadow(0 0 24px rgba(239,68,68,0.9))', animation: 'boss-icon-shake 0.18s ease-in-out infinite alternate' }}>
-              {bossInfo?.icon || '💀'}
+              {bossIcon || <Flame size={88} color="#ef4444" />}
             </div>
 
             {/* Boss name */}
@@ -528,9 +579,14 @@ export default function StudySession() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <BookOpen size={13} color={isBoss ? '#ef4444' : '#34d399'} />
               <span style={{ fontSize: 10, fontWeight: 900, color: isBoss ? '#ef4444' : '#34d399', textTransform: 'uppercase', letterSpacing: '0.14em', whiteSpace: 'nowrap' }}>
-                {isBoss ? '💀 Boss Level' : island.title}
+                {isBoss ? 'Boss Level' : island.title}
               </span>
             </div>
+            {levelWords.length > 0 && (
+              <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.45)', fontWeight: 700 }}>
+                Word {wordIndex + 1} / {levelWords.length}
+              </div>
+            )}
             {/* Level progress bar */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <div style={{ width: 100, height: 4, borderRadius: 99, background: 'rgba(255,255,255,0.08)', overflow: 'hidden', flexShrink: 0 }}>
@@ -586,7 +642,7 @@ export default function StudySession() {
                     if (next >= REQUIRED_STREAK) {
                       setMatchStreak(0);
                       setRecording(false);
-                      markComplete();
+                      advanceWord();
                     }
                     return next;
                   });
@@ -651,7 +707,7 @@ export default function StudySession() {
             <p style={{ margin: '6px 0 0', fontSize: 12, color: 'rgba(255,255,255,0.5)', fontWeight: 700 }}>{panelDescription}</p>
           </div>
 
-          <YouTubeTutorial word={activeLevel.label} isLetter={isLetterTarget} />
+          <YouTubeTutorial word={panelTitle} isLetter={isLetterTarget} />
 
           <TipBox tip={panelTip} />
 
@@ -690,6 +746,23 @@ export default function StudySession() {
               </p>
             )}
           </div>
+
+          {levelWords.length > 0 && (
+            <div style={{ display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap', flexShrink: 0 }}>
+              {levelWords.map((word, idx) => (
+                <div key={`${word.id}-${idx}`} style={{
+                  borderRadius: 99, padding: '4px 10px', fontSize: 10, fontWeight: 800,
+                  letterSpacing: '0.04em',
+                  color: idx < wordIndex ? '#064e3b' : idx === wordIndex ? '#064e3b' : 'rgba(255,255,255,0.7)',
+                  background: idx < wordIndex ? '#34d399' : idx === wordIndex ? '#22d3ee' : 'rgba(255,255,255,0.12)',
+                  boxShadow: idx === wordIndex ? '0 0 0 2px rgba(34,211,238,0.6)' : 'none',
+                  transition: 'all 0.2s',
+                }}>
+                  {word.label}
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* level dots */}
           <div style={{ display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap', flexShrink: 0 }}>

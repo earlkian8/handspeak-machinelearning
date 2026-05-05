@@ -7,6 +7,7 @@ import {
 import { getStoredStudyProgress, getVoyageStats, loadStudyProgress, resetStudyProgress, unlockAllProgress } from '../study/studyVoyage';
 import { isTutorialSkipped, clearTutorialSkip, markTutorialSkipped } from '../../components/TutorialModal';
 import { useIslands } from '../../contexts/IslandsContext';
+import { putJson, deleteJson } from '../../lib/api';
 
 const ISLAND_COLORS = {
   greetings: '#22d3ee',
@@ -67,6 +68,14 @@ export default function Settings({ user, onLogout }) {
   const [progress, setProgress] = useState(null);
   const [confirmReset, setConfirmReset] = useState(false);
   const [tutorialEnabled, setTutorialEnabled] = useState(() => !isTutorialSkipped());
+  const [showGuestWarning, setShowGuestWarning] = useState(false);
+  const [showSaveAccount, setShowSaveAccount] = useState(false);
+  const [saveEmail, setSaveEmail] = useState('');
+  const [savePassword, setSavePassword] = useState('');
+  const [saveConfirm, setSaveConfirm] = useState('');
+  const [saveError, setSaveError] = useState('');
+  const [saveBusy, setSaveBusy] = useState(false);
+  const [deleteBusy, setDeleteBusy] = useState(false);
 
   const handleTutorialToggle = () => {
     if (tutorialEnabled) {
@@ -103,12 +112,20 @@ export default function Settings({ user, onLogout }) {
         totalPhraseLevels: datasetWordTotal,
       };
 
-  const handleLogout = () => {
+  const performLogout = () => {
     localStorage.removeItem('handspeak_user');
     localStorage.removeItem('handspeak_profile');
     localStorage.removeItem('handspeak_study_progress');
     if (onLogout) onLogout();
     navigate('/');
+  };
+
+  const handleLogout = () => {
+    if (profile?.is_guest) {
+      setShowGuestWarning(true);
+      return;
+    }
+    performLogout();
   };
 
   const handleResetProgress = () => {
@@ -122,7 +139,7 @@ export default function Settings({ user, onLogout }) {
     }
   };
 
-  const profileName = [profile.first_name, profile.middle_name, profile.last_name].filter(Boolean).join(' ') || '—';
+  const profileName = [profile.first_name, profile.middle_name, profile.last_name].filter(Boolean).join(' ') || profile.nickname || '—';
   const initials = [profile.first_name?.[0], profile.last_name?.[0]].filter(Boolean).join('').toUpperCase() || '?';
 
   const xpPct = Math.min(100, stats.progressPercent ?? 0);
@@ -184,7 +201,6 @@ export default function Settings({ user, onLogout }) {
                 {initials}
               </div>
               <div style={{ flex: 1 }}>
-                <p style={{ margin: '0 0 3px', fontSize: 10, fontWeight: 900, color: 'rgba(255,255,255,0.55)', letterSpacing: '0.18em', textTransform: 'uppercase' }}>Student</p>
                 <h2 style={{ margin: '0 0 6px', fontSize: 22, fontWeight: 900 }}>{profileName}</h2>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   {profile.nickname && (
@@ -364,6 +380,31 @@ export default function Settings({ user, onLogout }) {
                   <ChevronRight size={16} color="rgba(251,146,60,0.6)" />
                 </button>
 
+                {profile?.is_guest && (
+                  <button
+                    onClick={() => { setShowSaveAccount(true); setShowGuestWarning(false); }}
+                    style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      padding: '16px 18px', borderRadius: 16,
+                      border: '1.5px solid rgba(59,130,246,0.45)',
+                      background: 'rgba(59,130,246,0.1)',
+                      cursor: 'pointer', color: '#93c5fd',
+                      fontFamily: "'Nunito',sans-serif", transition: 'all 0.2s',
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(59,130,246,0.22)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(59,130,246,0.1)'; }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <Shield size={18} color="#60a5fa" />
+                      <div style={{ textAlign: 'left' }}>
+                        <p style={{ margin: 0, fontSize: 14, fontWeight: 800 }}>Save Account</p>
+                        <p style={{ margin: 0, fontSize: 12, color: 'rgba(147,197,253,0.7)', fontWeight: 700 }}>Add an email and password</p>
+                      </div>
+                    </div>
+                    <ChevronRight size={16} color="rgba(147,197,253,0.6)" />
+                  </button>
+                )}
+
                 <button
                   onClick={handleLogout}
                   style={{
@@ -421,6 +462,196 @@ export default function Settings({ user, onLogout }) {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&display=swap');
       `}</style>
+
+      {showGuestWarning && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 40,
+          background: 'rgba(3,7,18,0.6)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: 16,
+        }}>
+          <div style={{
+            width: '100%', maxWidth: 420,
+            background: '#0f172a',
+            borderRadius: 20,
+            border: '1.5px solid rgba(148,163,184,0.3)',
+            padding: '22px 24px',
+            boxShadow: '0 24px 60px rgba(0,0,0,0.4)',
+          }}>
+            <h3 style={{ margin: 0, fontSize: 18, fontWeight: 900 }}>Save your account?</h3>
+            <p style={{ margin: '10px 0 18px', fontSize: 13, color: 'rgba(226,232,240,0.8)', lineHeight: 1.6 }}>
+              If you don't save your account, you won't be able to access it again.
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <button
+                onClick={() => { setShowSaveAccount(true); setShowGuestWarning(false); }}
+                style={{
+                  width: '100%', padding: '12px 16px', borderRadius: 12,
+                  border: 'none', background: 'linear-gradient(135deg,#38bdf8,#2563eb)',
+                  color: 'white', fontWeight: 900, letterSpacing: '0.06em', textTransform: 'uppercase',
+                  cursor: 'pointer',
+                }}
+              >
+                Save Account
+              </button>
+              <button
+                onClick={async () => {
+                  setDeleteBusy(true);
+                  try {
+                    await deleteJson(`/api/auth/guest/${profile.id}`);
+                  } finally {
+                    setDeleteBusy(false);
+                    setShowGuestWarning(false);
+                    performLogout();
+                  }
+                }}
+                disabled={deleteBusy}
+                style={{
+                  width: '100%', padding: '12px 16px', borderRadius: 12,
+                  border: '1.5px solid rgba(248,113,113,0.5)', background: 'transparent',
+                  color: '#fca5a5', fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase',
+                  cursor: deleteBusy ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {deleteBusy ? 'Leaving...' : 'Continue Without Saving'}
+              </button>
+              <button
+                onClick={() => setShowGuestWarning(false)}
+                style={{
+                  width: '100%', padding: '10px 16px', borderRadius: 12,
+                  border: 'none', background: 'transparent',
+                  color: 'rgba(226,232,240,0.7)', fontWeight: 700, cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showSaveAccount && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 50,
+          background: 'rgba(3,7,18,0.65)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: 16,
+        }}>
+          <div style={{
+            width: '100%', maxWidth: 440,
+            background: '#0f172a',
+            borderRadius: 20,
+            border: '1.5px solid rgba(148,163,184,0.3)',
+            padding: '24px 26px',
+            boxShadow: '0 24px 60px rgba(0,0,0,0.45)',
+          }}>
+            <h3 style={{ margin: 0, fontSize: 18, fontWeight: 900 }}>Save Account</h3>
+            <p style={{ margin: '8px 0 16px', fontSize: 13, color: 'rgba(226,232,240,0.75)', lineHeight: 1.6 }}>
+              Add an email and password so this account can be recovered later.
+            </p>
+
+            {saveError && (
+              <div style={{
+                background: 'rgba(248,113,113,0.12)',
+                border: '1.5px solid rgba(248,113,113,0.35)',
+                color: '#fca5a5', borderRadius: 12, padding: '10px 12px',
+                fontSize: 13, marginBottom: 12, fontWeight: 700,
+              }}>
+                {saveError}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <input
+                type="email"
+                placeholder="Parent email"
+                value={saveEmail}
+                onChange={e => setSaveEmail(e.target.value)}
+                style={{
+                  width: '100%', padding: '12px 14px', borderRadius: 12,
+                  border: '2px solid rgba(148,163,184,0.3)', background: '#0b1325',
+                  color: 'white', fontSize: 14, outline: 'none',
+                }}
+              />
+              <input
+                type="password"
+                placeholder="Password"
+                value={savePassword}
+                onChange={e => setSavePassword(e.target.value)}
+                style={{
+                  width: '100%', padding: '12px 14px', borderRadius: 12,
+                  border: '2px solid rgba(148,163,184,0.3)', background: '#0b1325',
+                  color: 'white', fontSize: 14, outline: 'none',
+                }}
+              />
+              <input
+                type="password"
+                placeholder="Confirm password"
+                value={saveConfirm}
+                onChange={e => setSaveConfirm(e.target.value)}
+                style={{
+                  width: '100%', padding: '12px 14px', borderRadius: 12,
+                  border: '2px solid rgba(148,163,184,0.3)', background: '#0b1325',
+                  color: 'white', fontSize: 14, outline: 'none',
+                }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 16 }}>
+              <button
+                onClick={async () => {
+                  setSaveError('');
+                  if (!saveEmail || !savePassword || !saveConfirm) {
+                    setSaveError('Please fill in all fields.');
+                    return;
+                  }
+                  if (savePassword !== saveConfirm) {
+                    setSaveError('Passwords do not match.');
+                    return;
+                  }
+                  if (savePassword.length < 6) {
+                    setSaveError('Password must be at least 6 characters.');
+                    return;
+                  }
+                  setSaveBusy(true);
+                  try {
+                    const updated = await putJson(`/api/auth/upgrade/${profile.id}`, {
+                      email: saveEmail,
+                      password: savePassword,
+                    });
+                    localStorage.setItem('handspeak_user', JSON.stringify(updated));
+                    setProfile(updated);
+                    setShowSaveAccount(false);
+                  } catch (saveAccountError) {
+                    setSaveError(saveAccountError.message || 'Unable to save account');
+                  } finally {
+                    setSaveBusy(false);
+                  }
+                }}
+                disabled={saveBusy}
+                style={{
+                  width: '100%', padding: '12px 16px', borderRadius: 12,
+                  border: 'none', background: saveBusy ? '#64748b' : 'linear-gradient(135deg,#38bdf8,#2563eb)',
+                  color: 'white', fontWeight: 900, letterSpacing: '0.06em', textTransform: 'uppercase',
+                  cursor: saveBusy ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {saveBusy ? 'Saving...' : 'Save Account'}
+              </button>
+              <button
+                onClick={() => setShowSaveAccount(false)}
+                style={{
+                  width: '100%', padding: '10px 16px', borderRadius: 12,
+                  border: 'none', background: 'transparent', color: 'rgba(226,232,240,0.7)',
+                  fontWeight: 700, cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

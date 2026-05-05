@@ -19,6 +19,9 @@ const normalizeLevel = (lvl) => ({
   ...lvl,
   phraseId: lvl.phrase_id,
   rewardXp: lvl.reward_xp,
+  candidatePhrases: lvl.candidate_phrases,
+  syllableCount: lvl.syllable_count,
+  wordCount: lvl.word_count,
 });
 
 const normalizeIsland = (raw) => ({

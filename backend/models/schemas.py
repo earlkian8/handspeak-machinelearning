@@ -14,6 +14,23 @@ class UserSignIn(BaseModel):
     password: str
 
 
+class GuestCreate(BaseModel):
+    nickname: Optional[str] = None
+
+
+class KidCreate(BaseModel):
+    nickname: str
+
+
+class KidSignIn(BaseModel):
+    nickname: str
+
+
+class AccountUpgrade(BaseModel):
+    email: EmailStr
+    password: str
+
+
 class UserProfile(BaseModel):
     first_name: str
     middle_name: Optional[str] = ""
@@ -29,6 +46,7 @@ class UserOut(BaseModel):
     last_name: Optional[str] = None
     nickname: Optional[str] = None
     profile_complete: bool = False
+    is_guest: bool = False
 
 
 # ── Progress ────────────────────────────────────────────────────────

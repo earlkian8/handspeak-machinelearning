@@ -19,6 +19,7 @@ const ISLAND_THEMES = {
   'chapter-3': { grad: 'linear-gradient(135deg, #92400e, #d97706, #fbbf24)', accent: '#fbbf24', particles: 'leaves' },
   'chapter-4': { grad: 'linear-gradient(135deg, #064e3b, #059669, #34d399)', accent: '#34d399', particles: 'butterflies' },
   'chapter-5': { grad: 'linear-gradient(135deg, #9a3412, #ea580c, #fb923c)', accent: '#fb923c', particles: 'sparkles' },
+  'chapter-6': { grad: 'linear-gradient(135deg, #312e81, #4338ca, #6366f1)', accent: '#818cf8', particles: 'orbs' },
 };
 const DEFAULT_THEME = { grad: 'linear-gradient(135deg, #1e293b, #334155)', accent: '#94a3b8', particles: 'sparkles' };
 
