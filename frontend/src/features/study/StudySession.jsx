@@ -96,6 +96,31 @@ export default function StudySession() {
     return raw ? String(raw).toLowerCase() : '';
   }, [location.search]);
 
+  const seededShuffle = useCallback((arr, seed) => {
+    const a = [...arr];
+    let s = seed;
+    for (let i = a.length - 1; i > 0; i--) {
+      s = (s * 1664525 + 1013904223) & 0xffffffff;
+      const j = Math.abs(s) % (i + 1);
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }, []);
+
+  const getUserSeed = useCallback((levelId) => {
+    try {
+      const user = JSON.parse(localStorage.getItem('handspeak_user') || 'null');
+      const key = `${user?.id || 'guest'}:${levelId}`;
+      let hash = 0;
+      for (let i = 0; i < key.length; i++) {
+        hash = (Math.imul(31, hash) + key.charCodeAt(i)) | 0;
+      }
+      return Math.abs(hash) || 1;
+    } catch {
+      return 1;
+    }
+  }, []);
+
   useEffect(() => {
     if (!activeLevel) return;
     const pool = activeLevel.candidatePhrases || activeLevel.candidate_phrases || [];
@@ -106,6 +131,7 @@ export default function StudySession() {
       return;
     }
     const totalCount = Math.min(total, pool.length);
+    const seed = getUserSeed(activeLevel.id);
     const matchIndex = preferredWord
       ? pool.findIndex((phrase) => {
           const candidates = [phrase?.word, phrase?.id, phrase?.label]
@@ -117,15 +143,15 @@ export default function StudySession() {
     if (matchIndex >= 0) {
       const preferred = pool[matchIndex];
       const rest = pool.filter((_, idx) => idx !== matchIndex);
-      const shuffledRest = [...rest].sort(() => Math.random() - 0.5);
+      const shuffledRest = seededShuffle(rest, seed);
       const ordered = [preferred, ...shuffledRest].slice(0, totalCount);
       setLevelWords(ordered);
     } else {
-      const shuffled = [...pool].sort(() => Math.random() - 0.5);
+      const shuffled = seededShuffle(pool, seed);
       setLevelWords(shuffled.slice(0, totalCount));
     }
     setWordIndex(0);
-  }, [activeLevel?.id, preferredWord]);
+  }, [activeLevel?.id, preferredWord, seededShuffle, getUserSeed]);
 
   // Boss intro overlay
   useEffect(() => {

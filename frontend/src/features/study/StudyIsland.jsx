@@ -281,10 +281,21 @@ export default function StudyIsland() {
       const fallback = level.label || level.id || '';
       return { displayWord: fallback, videoWord: fallback, preferredWord: fallback };
     }
-    const pick = pool[Math.floor(Math.random() * pool.length)];
-    const displayWord = pick?.label || pick?.word || pick?.id || level.label || level.id || '';
-    const videoWord = pick?.word || pick?.id || pick?.label || level.label || level.id || '';
-    return { displayWord, videoWord, preferredWord: videoWord || displayWord };
+    try {
+      const user = JSON.parse(localStorage.getItem('handspeak_user') || 'null');
+      const key = `${user?.id || 'guest'}:${level.id}`;
+      let hash = 0;
+      for (let i = 0; i < key.length; i++) hash = (Math.imul(31, hash) + key.charCodeAt(i)) | 0;
+      const pick = pool[Math.abs(hash) % pool.length];
+      const displayWord = pick?.label || pick?.word || pick?.id || level.label || level.id || '';
+      const videoWord = pick?.word || pick?.id || pick?.label || level.label || level.id || '';
+      return { displayWord, videoWord, preferredWord: videoWord || displayWord };
+    } catch {
+      const pick = pool[0];
+      const displayWord = pick?.label || pick?.word || pick?.id || level.label || level.id || '';
+      const videoWord = pick?.word || pick?.id || pick?.label || level.label || level.id || '';
+      return { displayWord, videoWord, preferredWord: videoWord || displayWord };
+    }
   };
 
   const launchLevel = (levelId) => {
