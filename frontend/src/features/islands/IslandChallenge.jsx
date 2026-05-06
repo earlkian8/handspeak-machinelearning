@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, CheckCircle, XCircle, HelpCircle, Eye, Hand, Trophy, ArrowRight, RotateCcw } from 'lucide-react';
+import { ArrowLeft, CheckCircle, XCircle, HelpCircle, Eye, Hand, Trophy, ArrowRight, RotateCcw, Keyboard } from 'lucide-react';
 import { useIslands } from '../../contexts/IslandsContext';
 import { getStoredStudyProgress, isIslandCompleted } from '../study/studyVoyage';
 import Camera from '../../components/Camera';
@@ -56,7 +56,7 @@ function buildQuestions(island) {
   if (pool.length < 4) return [];
   const selected = pool.slice(0, Math.min(TOTAL_QUESTIONS + 5, pool.length));
 
-  const typeDistribution = ['mc', 'mc', 'mc', 'mc', 'id', 'id', 'id', 'action', 'action', 'action'];
+  const typeDistribution = ['mc', 'mc', 'mc', 'id', 'id', 'text-input', 'text-input', 'action', 'action', 'action'];
   const shuffledTypes = shuffle(typeDistribution).slice(0, TOTAL_QUESTIONS);
 
   return shuffledTypes.map((type, i) => {
@@ -144,6 +144,117 @@ function IdQuestion({ question, onAnswer, answered, selected }) {
       </p>
       <SignMedia correct={correct} />
       <ChoicesGrid choices={question.choices} correct={correct} answered={answered} selected={selected} onAnswer={onAnswer} />
+    </div>
+  );
+}
+
+function TextInputQuestion({ question, onAnswer, answered, selected }) {
+  const { correct } = question;
+  const [userInput, setUserInput] = useState('');
+  const inputRef = useRef(null);
+
+  const handleSubmit = () => {
+    if (!userInput.trim()) return;
+    const isCorrect = userInput.trim().toLowerCase() === correct.label.toLowerCase();
+    onAnswer({ label: userInput.trim() }, isCorrect);
+  };
+
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter' && !answered) handleSubmit();
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20, alignItems: 'center' }}>
+      <p style={{ margin: 0, fontSize: 17, fontWeight: 800, color: 'rgba(255,255,255,0.8)', textAlign: 'center' }}>
+        {correct.isLetter ? 'Type the letter shown in this sign:' : 'Type the word shown in this video:'}
+      </p>
+      <SignMedia correct={correct} />
+      
+      <div style={{ width: '100%', maxWidth: 380, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <input
+          ref={inputRef}
+          type="text"
+          value={userInput}
+          onChange={(e) => setUserInput(e.target.value)}
+          onKeyPress={handleKeyPress}
+          disabled={answered}
+          placeholder="Type your answer here..."
+          autoFocus
+          style={{
+            width: '100%',
+            padding: '14px 16px',
+            borderRadius: 14,
+            border: answered
+              ? selected?.label.toLowerCase() === correct.label.toLowerCase()
+                ? '2px solid #34d399'
+                : '2px solid #ef4444'
+              : '2px solid rgba(255,255,255,0.15)',
+            background: answered
+              ? selected?.label.toLowerCase() === correct.label.toLowerCase()
+                ? 'rgba(52,211,153,0.15)'
+                : 'rgba(239,68,68,0.15)'
+              : 'rgba(255,255,255,0.08)',
+            color: 'white',
+            fontSize: 16,
+            fontWeight: 700,
+            fontFamily: "'Nunito',sans-serif",
+            outline: 'none',
+            textAlign: 'center'
+          }}
+        />
+        
+        {!answered && (
+          <button
+            onClick={handleSubmit}
+            disabled={!userInput.trim()}
+            style={{
+              padding: '14px',
+              borderRadius: 14,
+              border: 'none',
+              background: userInput.trim() ? 'linear-gradient(135deg,#34d399,#22d3ee)' : 'rgba(255,255,255,0.1)',
+              color: userInput.trim() ? '#064e3b' : 'rgba(255,255,255,0.3)',
+              fontSize: 15,
+              fontWeight: 900,
+              cursor: userInput.trim() ? 'pointer' : 'not-allowed',
+              fontFamily: "'Nunito',sans-serif",
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6
+            }}
+          >
+            <CheckCircle size={16} /> Submit Answer
+          </button>
+        )}
+        
+        {answered && (
+          <div style={{
+            padding: '12px 16px',
+            borderRadius: 12,
+            background: selected?.label.toLowerCase() === correct.label.toLowerCase()
+              ? 'rgba(52,211,153,0.2)'
+              : 'rgba(239,68,68,0.2)',
+            border: selected?.label.toLowerCase() === correct.label.toLowerCase()
+              ? '1.5px solid rgba(52,211,153,0.4)'
+              : '1.5px solid rgba(239,68,68,0.4)',
+            textAlign: 'center'
+          }}>
+            <div style={{
+              fontSize: 14,
+              fontWeight: 800,
+              color: selected?.label.toLowerCase() === correct.label.toLowerCase() ? '#6ee7b7' : '#fca5a5',
+              marginBottom: 4
+            }}>
+              {selected?.label.toLowerCase() === correct.label.toLowerCase() ? '✓ Correct!' : '✗ Incorrect'}
+            </div>
+            {selected?.label.toLowerCase() !== correct.label.toLowerCase() && (
+              <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', fontWeight: 700 }}>
+                The correct answer is: <strong style={{ color: '#6ee7b7' }}>{correct.label}</strong>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -360,6 +471,7 @@ export default function IslandChallenge() {
           <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 99, padding: '5px 14px' }}>
             {q?.type === 'mc' && <><HelpCircle size={13} color="#60a5fa" /><span style={{ fontSize: 11, fontWeight: 900, color: '#93c5fd', textTransform: 'uppercase', letterSpacing: '0.14em' }}>Multiple Choice</span></>}
             {q?.type === 'id' && <><Eye size={13} color="#a78bfa" /><span style={{ fontSize: 11, fontWeight: 900, color: '#c4b5fd', textTransform: 'uppercase', letterSpacing: '0.14em' }}>Identify the Sign</span></>}
+            {q?.type === 'text-input' && <><Keyboard size={13} color="#34d399" /><span style={{ fontSize: 11, fontWeight: 900, color: '#6ee7b7', textTransform: 'uppercase', letterSpacing: '0.14em' }}>Type the Word</span></>}
             {q?.type === 'action' && <><Hand size={13} color="#fb923c" /><span style={{ fontSize: 11, fontWeight: 900, color: '#fdba74', textTransform: 'uppercase', letterSpacing: '0.14em' }}>Perform the Sign</span></>}
           </div>
 
@@ -367,6 +479,7 @@ export default function IslandChallenge() {
           <div style={{ width: '100%', maxWidth: 560, background: 'rgba(255,255,255,0.06)', border: '1.5px solid rgba(255,255,255,0.12)', borderRadius: 28, padding: '28px 24px', opacity: transitioning ? 0 : 1, transition: 'opacity 0.3s ease' }}>
             {q?.type === 'mc' && <McQuestion question={q} onAnswer={handleAnswer} answered={answered} selected={answers[q.id]?.selected} />}
             {q?.type === 'id' && <IdQuestion question={q} onAnswer={handleAnswer} answered={answered} selected={answers[q.id]?.selected} />}
+            {q?.type === 'text-input' && <TextInputQuestion question={q} onAnswer={handleAnswer} answered={answered} selected={answers[q.id]?.selected} />}
             {q?.type === 'action' && <ActionQuestion question={q} onAnswer={handleAnswer} answered={answered} result={actionResult} />}
           </div>
 
