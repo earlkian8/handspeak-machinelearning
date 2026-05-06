@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, CheckCircle, XCircle, HelpCircle, Eye, Hand, Trophy, ArrowRight, RotateCcw, Keyboard } from 'lucide-react';
 import { useIslands } from '../../contexts/IslandsContext';
@@ -261,9 +261,70 @@ function TextInputQuestion({ question, onAnswer, answered, selected }) {
 
 function ActionQuestion({ question, onAnswer, answered, result }) {
   const webcamRef = useRef(null);
-  const [practicing, setPracticing] = useState(false);
+  const [recording, setRecording] = useState(false);
+  const [processing, setProcessing] = useState(false);
+  const recordingIntervalRef = useRef(null);
+  const framesRef = useRef([]);
 
-  // Self-assessment: no API call. Student practices then taps "I did it" or "I need more practice".
+  const startRecording = useCallback(() => {
+    framesRef.current = [];
+    setRecording(true);
+    
+    recordingIntervalRef.current = setInterval(() => {
+      if (webcamRef.current?.captureFrame) {
+        const frame = webcamRef.current.captureFrame();
+        if (frame) framesRef.current.push(frame);
+      }
+    }, 100); // Capture frame every 100ms
+  }, []);
+
+  const stopRecording = useCallback(async () => {
+    setRecording(false);
+    if (recordingIntervalRef.current) {
+      clearInterval(recordingIntervalRef.current);
+      recordingIntervalRef.current = null;
+    }
+
+    const frames = framesRef.current;
+    if (frames.length === 0) {
+      onAnswer({ label: question.correct.label }, false);
+      return;
+    }
+
+    setProcessing(true);
+
+    try {
+      const { postJson } = await import('../../lib/api');
+      const isLetter = question.correct.isLetter;
+      const endpoint = isLetter ? '/api/gesture/verify/static' : '/api/gesture/verify/dynamic';
+      
+      const response = await postJson(endpoint, {
+        target_word: question.correct.label,
+        frames: frames,
+        threshold: isLetter ? 0.65 : 0.35,
+        top_k: 5,
+        model_type: isLetter ? 'static' : 'dynamic'
+      });
+
+      const isCorrect = response.is_match;
+      onAnswer({ label: question.correct.label }, isCorrect);
+    } catch (error) {
+      console.error('Gesture verification failed:', error);
+      onAnswer({ label: question.correct.label }, false);
+    } finally {
+      setProcessing(false);
+      framesRef.current = [];
+    }
+  }, [question.correct, onAnswer]);
+
+  useEffect(() => {
+    return () => {
+      if (recordingIntervalRef.current) {
+        clearInterval(recordingIntervalRef.current);
+      }
+    };
+  }, []);
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16, alignItems: 'center' }}>
       <p style={{ margin: 0, fontSize: 17, fontWeight: 800, color: 'rgba(255,255,255,0.8)', textAlign: 'center' }}>
@@ -274,45 +335,54 @@ function ActionQuestion({ question, onAnswer, answered, result }) {
       </div>
 
       {/* Camera preview */}
-      <div style={{ width: '100%', maxWidth: 340, borderRadius: 18, overflow: 'hidden', background: '#040c18', minHeight: 200 }}>
+      <div style={{ width: '100%', maxWidth: 340, borderRadius: 18, overflow: 'hidden', background: '#040c18', minHeight: 200, position: 'relative' }}>
         <Camera ref={webcamRef} />
+        {recording && (
+          <div style={{ position: 'absolute', top: 12, right: 12, background: 'rgba(239,68,68,0.9)', borderRadius: 99, padding: '6px 12px', display: 'flex', alignItems: 'center', gap: 6, animation: 'pulse 1.5s ease-in-out infinite' }}>
+            <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'white' }} />
+            <span style={{ fontSize: 11, fontWeight: 900, color: 'white', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Recording</span>
+          </div>
+        )}
       </div>
 
-      {!answered && !practicing && (
+      {!answered && !recording && !processing && (
         <button
-          onClick={() => setPracticing(true)}
-          style={{ padding: '13px 30px', borderRadius: 99, border: 'none', background: 'linear-gradient(135deg,#34d399,#22d3ee)', color: '#064e3b', fontSize: 15, fontWeight: 900, cursor: 'pointer', fontFamily: "'Nunito',sans-serif", boxShadow: '0 6px 20px rgba(0,0,0,0.3)' }}>
-          I am ready — show me the sign
+          onClick={startRecording}
+          style={{ padding: '14px 32px', borderRadius: 99, border: 'none', background: 'linear-gradient(135deg,#34d399,#22d3ee)', color: '#064e3b', fontSize: 15, fontWeight: 900, cursor: 'pointer', fontFamily: "'Nunito',sans-serif", boxShadow: '0 6px 20px rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Hand size={16} /> Start Recording
         </button>
       )}
 
-      {!answered && practicing && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'center', width: '100%', maxWidth: 380 }}>
-          <p style={{ margin: 0, fontSize: 13, color: 'rgba(255,255,255,0.6)', fontWeight: 700, textAlign: 'center' }}>
-            Sign <strong style={{ color: '#fb923c' }}>{question.correct.label}</strong> clearly in front of the camera, then tap your answer below:
-          </p>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, width: '100%' }}>
-            <button
-              onClick={() => onAnswer({ label: question.correct.label }, true)}
-              style={{ padding: '16px 12px', borderRadius: 16, border: '2px solid rgba(52,211,153,0.5)', background: 'rgba(52,211,153,0.15)', color: '#6ee7b7', fontSize: 14, fontWeight: 900, cursor: 'pointer', fontFamily: "'Nunito',sans-serif" }}>
-              I got it right!
-            </button>
-            <button
-              onClick={() => onAnswer({ label: question.correct.label }, false)}
-              style={{ padding: '16px 12px', borderRadius: 16, border: '2px solid rgba(239,68,68,0.4)', background: 'rgba(239,68,68,0.12)', color: '#fca5a5', fontSize: 14, fontWeight: 900, cursor: 'pointer', fontFamily: "'Nunito',sans-serif" }}>
-              I need more practice
-            </button>
-          </div>
+      {!answered && recording && (
+        <button
+          onClick={stopRecording}
+          style={{ padding: '14px 32px', borderRadius: 99, border: '2px solid #ef4444', background: 'rgba(239,68,68,0.2)', color: '#fca5a5', fontSize: 15, fontWeight: 900, cursor: 'pointer', fontFamily: "'Nunito',sans-serif", display: 'flex', alignItems: 'center', gap: 8 }}>
+          <CheckCircle size={16} /> Stop & Submit
+        </button>
+      )}
+
+      {processing && (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+          <div style={{ width: 32, height: 32, borderRadius: '50%', border: '3px solid rgba(52,211,153,0.3)', borderTopColor: '#34d399', animation: 'spin 0.8s linear infinite' }} />
+          <p style={{ margin: 0, fontSize: 13, color: 'rgba(255,255,255,0.6)', fontWeight: 700 }}>Analyzing your gesture...</p>
         </div>
       )}
 
       {answered && (
-        <p style={{ margin: 0, fontSize: 15, fontWeight: 800, color: result ? '#6ee7b7' : '#fca5a5', textAlign: 'center' }}>
-          {result ? 'Great job! Keep it up!' : `Keep practicing "${question.correct.label}" — you will get it!`}
-        </p>
+        <div style={{ padding: '16px 20px', borderRadius: 16, background: result ? 'rgba(52,211,153,0.2)' : 'rgba(239,68,68,0.2)', border: result ? '2px solid rgba(52,211,153,0.4)' : '2px solid rgba(239,68,68,0.4)', textAlign: 'center', maxWidth: 380 }}>
+          <div style={{ fontSize: 16, fontWeight: 900, color: result ? '#6ee7b7' : '#fca5a5', marginBottom: 4 }}>
+            {result ? '✓ Correct!' : '✗ Not quite right'}
+          </div>
+          <p style={{ margin: 0, fontSize: 13, color: 'rgba(255,255,255,0.7)', fontWeight: 700 }}>
+            {result ? `Great job performing "${question.correct.label}"!` : `Keep practicing "${question.correct.label}" — you'll get it!`}
+          </p>
+        </div>
       )}
 
-      <style>{`@keyframes action-blink { 0%,100%{opacity:1} 50%{opacity:0.25} }`}</style>
+      <style>{`
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.6} }
+        @keyframes spin { to{transform:rotate(360deg)} }
+      `}</style>
     </div>
   );
 }
@@ -379,8 +449,23 @@ export default function IslandChallenge() {
     if (!q) return;
     const isCorrect = forceCorrect !== null ? forceCorrect : choice.label === q.correct.label;
     setAnswers(prev => ({ ...prev, [q.id]: { selected: choice, correct: isCorrect } }));
-    if (q.type === 'action') setActionResult(isCorrect);
-  }, [q]);
+    if (q.type === 'action') {
+      setActionResult(isCorrect);
+      // Auto-advance after 2 seconds for action questions
+      setTimeout(() => {
+        if (current + 1 >= questions.length) {
+          setShowResult(true);
+        } else {
+          setTransitioning(true);
+          setTimeout(() => {
+            setCurrent(c => c + 1);
+            setActionResult(null);
+            setTransitioning(false);
+          }, 300);
+        }
+      }, 2000);
+    }
+  }, [q, current, questions.length]);
 
   const handleNext = () => {
     if (current + 1 >= questions.length) {
@@ -484,7 +569,7 @@ export default function IslandChallenge() {
           </div>
 
           {/* Next button */}
-          {answered && (
+          {answered && q?.type !== 'action' && (
             <button onClick={handleNext} style={{ marginTop: 20, padding: '14px 36px', borderRadius: 99, border: 'none', background: 'linear-gradient(135deg,#34d399,#22d3ee)', color: '#064e3b', fontSize: 16, fontWeight: 900, cursor: 'pointer', fontFamily: "'Nunito',sans-serif", boxShadow: '0 8px 24px rgba(52,211,153,0.35)', animation: 'next-appear 0.25s ease-out', display: 'flex', alignItems: 'center', gap: 8 }}>
               {current + 1 >= questions.length ? <><Trophy size={16} />See Results</> : <>Next Question <ArrowRight size={16} /></>}
             </button>
