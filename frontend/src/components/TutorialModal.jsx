@@ -2,7 +2,6 @@ import React, { useCallback, useRef, useState } from 'react';
 import { ChevronRight, RotateCcw, X } from 'lucide-react';
 
 const BLOB_BASE = import.meta.env.VITE_BLOB_BASE_URL || 'https://2hku3a621tdz3iiv.public.blob.vercel-storage.com/videos';
-const ALPHA_BASE = 'https://www.lifeprint.com/asl101/fingerspelling/abc-gifs';
 
 const FILENAME_OVERRIDES = {
   hesheit: 'heshiet',
@@ -48,7 +47,7 @@ export default function TutorialModal({ word, displayWord, videoWord, isLetter =
   const headerWord = displayWord || word || '';
   const mediaWord = videoWord || word || '';
   const videoUrl = mediaWord && !isLetter ? getVideoUrl(mediaWord) : null;
-  const alphaUrl = mediaWord && isLetter ? `${ALPHA_BASE}/${mediaWord.toLowerCase()}.gif` : null;
+  const alphaUrl = mediaWord && isLetter ? `/static/${mediaWord.toLowerCase()}.jpg` : null;
 
   return (
     <div style={{
@@ -90,6 +89,7 @@ export default function TutorialModal({ word, displayWord, videoWord, isLetter =
                 src={alphaUrl}
                 alt={`ASL sign for letter ${String(headerWord).toUpperCase()}`}
                 style={{ maxHeight: '100%', maxWidth: '100%', objectFit: 'contain' }}
+                onError={e => { e.currentTarget.style.display = 'none'; }}
               />
             ) : videoUrl && !videoError ? (
               <video
