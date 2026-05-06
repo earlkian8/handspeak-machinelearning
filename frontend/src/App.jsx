@@ -16,6 +16,8 @@ import StudySession from './features/study/StudySession';
 import IslandsHub from './features/islands/IslandsHub';
 import IslandOverview from './features/islands/IslandOverview';
 import IslandChallenge from './features/islands/IslandChallenge';
+import MiniQuiz from './features/islands/MiniQuiz';
+import BossBattle from './features/islands/BossBattle';
 import Converse from './features/converse/Converse';
 import SignQuiz from './features/quiz/SignQuiz';
 import DailyChallenge from './features/daily/DailyChallenge';
@@ -81,6 +83,8 @@ function App() {
           <Route path="/islands" element={guard(<IslandsHub />)} />
           <Route path="/islands/:islandId" element={guard(<IslandOverview />)} />
           <Route path="/islands/:islandId/challenge" element={guard(<IslandChallenge />)} />
+          <Route path="/islands/:islandId/quiz/:levelId" element={guard(<MiniQuiz />)} />
+          <Route path="/islands/:islandId/boss/:levelId" element={guard(<BossBattle />)} />
           <Route path="/converse" element={guard(<Converse />)} />
           <Route path="/quiz" element={guard(<SignQuiz />)} />
           <Route path="/daily" element={guard(<DailyChallenge />)} />

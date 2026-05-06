@@ -243,8 +243,7 @@ def _build_vocab_island(topic: dict, order: int, idx: int) -> dict[str, Any]:
 
     boss_meta = _VOCAB_BOSS.get(topic["id"], {})
 
-    syllable_levels = [1, 1, 1, 2, 2, 2, 3, 3, 3]
-    words_per_level = {1: 5, 2: 3, 3: 1}
+    # Group words by syllable count
     buckets: dict[int, list[dict[str, Any]]] = {1: [], 2: [], 3: []}
     for phrase in topic["phrases"]:
         count = int(phrase.get("syllables") or 1)
@@ -259,22 +258,29 @@ def _build_vocab_island(topic: dict, order: int, idx: int) -> dict[str, Any]:
                 return buckets[fallback]
         return []
 
+    # Build structured levels with quizzes
     levels = []
-    for index, syllables in enumerate(syllable_levels, start=1):
-        pool = pick_bucket(syllables)
-        word_count = words_per_level.get(syllables, 1)
-        levels.append(
-            {
-                "id": f"{topic['id']}::level-{index}",
-                "phrase_id": f"{topic['id']}::level-{index}",
-                "order": index,
+    level_order = 1
+    
+    # For each syllable group (1, 2, 3)
+    for syllable_group in [1, 2, 3]:
+        pool = pick_bucket(syllable_group)
+        if not pool:
+            continue
+            
+        # Add 3 learning levels
+        for i in range(3):
+            levels.append({
+                "id": f"{topic['id']}::level-{level_order}",
+                "phrase_id": f"{topic['id']}::level-{level_order}",
+                "order": level_order,
                 "type": "word",
-                "label": f"{syllables}-syl",
-                "description": f"Practice {word_count} word(s) with {syllables} syllable(s).",
+                "node_type": "learn",
+                "label": f"{syllable_group}-syl",
+                "description": f"Learn words with {syllable_group} syllable(s).",
                 "tip": "Keep your hand centered and clearly visible in the frame.",
                 "reward_xp": XP_PER_LEVEL,
-                "syllable_count": syllables,
-                "word_count": word_count,
+                "syllable_count": syllable_group,
                 "candidate_phrases": [
                     {
                         "id": phrase["id"],
@@ -286,8 +292,38 @@ def _build_vocab_island(topic: dict, order: int, idx: int) -> dict[str, Any]:
                     }
                     for phrase in pool
                 ],
-            }
-        )
+            })
+            level_order += 1
+        
+        # Add mini quiz after every 3 levels
+        levels.append({
+            "id": f"{topic['id']}::quiz-{syllable_group}",
+            "phrase_id": f"{topic['id']}::quiz-{syllable_group}",
+            "order": level_order,
+            "type": "quiz",
+            "node_type": "quiz",
+            "label": f"Quiz: {syllable_group}-syl",
+            "description": f"Test your knowledge of {syllable_group}-syllable words.",
+            "tip": "Review the previous words if needed.",
+            "reward_xp": 5,
+            "syllable_count": syllable_group,
+            "quiz_scope": [f"{topic['id']}::level-{level_order-3}", f"{topic['id']}::level-{level_order-2}", f"{topic['id']}::level-{level_order-1}"],
+        })
+        level_order += 1
+    
+    # Add boss battle at the end
+    levels.append({
+        "id": f"{topic['id']}::boss",
+        "phrase_id": f"{topic['id']}::boss",
+        "order": level_order,
+        "type": "boss",
+        "node_type": "boss",
+        "label": "Boss Battle",
+        "description": f"Defeat the {boss_meta.get('boss', {}).get('name', 'Island Boss')} to complete this island!",
+        "tip": "You need 70% to pass. Review all words if needed.",
+        "reward_xp": 30,
+        "boss_scope": "all",  # Tests all words from the island
+    })
 
     theme = meta.get("theme", _DEFAULT_THEMES[idx % len(_DEFAULT_THEMES)])
     if "theme_extra" in boss_meta:

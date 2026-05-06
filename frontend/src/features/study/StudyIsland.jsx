@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, CheckCircle2, Lock, Play, Star, Zap, Target, Flame, Crown, ChevronRight, Trophy, Bolt, Theater, Landmark, Shield, Heart, MapPin } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Lock, Play, Star, Zap, Target, Flame, Crown, ChevronRight, Trophy, Bolt, Theater, Landmark, Shield, Heart, MapPin, Swords, Award } from 'lucide-react';
 import {
   getInitialStudyProgress,
   getStoredStudyProgress,
@@ -54,10 +54,10 @@ function MilestoneMarker({ index }) {
 }
 
 /* ── level node on the snake path ── */
-function LevelNode({ level, index, completed, levelUnlocked, isBoss, bossInfo, bossIcon, isCurrentNext, onClick, totalLevels }) {
+function LevelNode({ level, index, completed, levelUnlocked, isBoss, isQuiz, bossInfo, bossIcon, isCurrentNext, onClick, totalLevels }) {
   const zone = getLevelDifficultyZone(index, totalLevels);
   const zoneColor = DIFF_COLORS[zone] || DIFF_COLORS.Easy;
-  const nodeSize = isBoss ? 80 : 56;
+  const nodeSize = isBoss ? 80 : isQuiz ? 64 : 56;
 
   return (
     <div
@@ -73,13 +73,23 @@ function LevelNode({ level, index, completed, levelUnlocked, isBoss, bossInfo, b
       onMouseLeave={(e) => { if (levelUnlocked) e.currentTarget.style.transform = 'scale(1)'; }}
     >
       {/* Milestone marker every 6 levels */}
-      {index > 0 && index % 6 === 0 && !isBoss && <MilestoneMarker index={index} />}
+      {index > 0 && index % 6 === 0 && !isBoss && !isQuiz && <MilestoneMarker index={index} />}
 
       {/* Boss glow aura */}
       {isBoss && isCurrentNext && (
         <div style={{
           position: 'absolute', inset: -8, borderRadius: '50%',
           background: `radial-gradient(circle, ${bossInfo?.border_color || '#fbbf24'}55, transparent 70%)`,
+          animation: 'boss-pulse 1.5s ease-in-out infinite',
+          zIndex: 0,
+        }} />
+      )}
+
+      {/* Quiz glow */}
+      {isQuiz && isCurrentNext && (
+        <div style={{
+          position: 'absolute', inset: -6, borderRadius: '50%',
+          background: 'radial-gradient(circle, #10b98155, transparent 70%)',
           animation: 'boss-pulse 1.5s ease-in-out infinite',
           zIndex: 0,
         }} />
@@ -97,6 +107,10 @@ function LevelNode({ level, index, completed, levelUnlocked, isBoss, bossInfo, b
             : levelUnlocked
             ? 'linear-gradient(135deg, #b91c1c, #991b1b)'
             : 'rgba(30,41,59,0.8)'
+          : isQuiz
+          ? levelUnlocked
+            ? 'linear-gradient(135deg, #10b981, #059669)'
+            : 'rgba(30,41,59,0.8)'
           : levelUnlocked
           ? 'rgba(255,255,255,0.12)'
           : 'rgba(15,23,42,0.8)',
@@ -104,6 +118,8 @@ function LevelNode({ level, index, completed, levelUnlocked, isBoss, bossInfo, b
           ? '3px solid #6ee7b7'
           : isBoss
           ? `3px solid ${isCurrentNext ? bossInfo?.border_color || '#fbbf24' : levelUnlocked ? '#ef4444' : 'rgba(100,116,139,0.4)'}`
+          : isQuiz
+          ? `3px solid ${isCurrentNext ? '#34d399' : levelUnlocked ? '#10b981' : 'rgba(100,116,139,0.4)'}`
           : levelUnlocked
           ? `3px solid ${isCurrentNext ? '#60a5fa' : 'rgba(255,255,255,0.25)'}`
           : '3px solid rgba(100,116,139,0.25)',
@@ -111,6 +127,8 @@ function LevelNode({ level, index, completed, levelUnlocked, isBoss, bossInfo, b
           ? '0 4px 16px rgba(52,211,153,0.4)'
           : isBoss && isCurrentNext
           ? `0 0 20px ${bossInfo?.border_color || '#fbbf24'}66, 0 8px 24px rgba(0,0,0,0.4)`
+          : isQuiz && isCurrentNext
+          ? '0 0 16px rgba(16,185,129,0.4), 0 8px 24px rgba(0,0,0,0.3)'
           : isCurrentNext
           ? '0 0 16px rgba(96,165,250,0.4), 0 8px 24px rgba(0,0,0,0.3)'
           : '0 4px 12px rgba(0,0,0,0.3)',
@@ -119,11 +137,13 @@ function LevelNode({ level, index, completed, levelUnlocked, isBoss, bossInfo, b
       }}>
         {/* Content */}
         {completed ? (
-          <CheckCircle2 size={isBoss ? 28 : 20} color="white" />
+          <CheckCircle2 size={isBoss ? 28 : isQuiz ? 22 : 20} color="white" />
         ) : isBoss ? (
           <div style={{ textAlign: 'center' }}>
             {bossIcon || <Crown size={20} color="white" />}
           </div>
+        ) : isQuiz ? (
+          <Award size={18} color="white" />
         ) : levelUnlocked ? (
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontSize: isBoss ? 16 : 14, fontWeight: 900, color: 'white', lineHeight: 1 }}>
@@ -131,7 +151,7 @@ function LevelNode({ level, index, completed, levelUnlocked, isBoss, bossInfo, b
             </div>
           </div>
         ) : (
-          <Lock size={isBoss ? 22 : 14} color="rgba(255,255,255,0.35)" />
+          <Lock size={isBoss ? 22 : isQuiz ? 16 : 14} color="rgba(255,255,255,0.35)" />
         )}
       </div>
 
@@ -146,7 +166,14 @@ function LevelNode({ level, index, completed, levelUnlocked, isBoss, bossInfo, b
             letterSpacing: '0.08em', textTransform: 'uppercase',
             display: 'flex', alignItems: 'center', gap: 3,
           }}>
-            <Flame size={8} /> FINAL
+            <Flame size={8} /> BOSS
+          </div>
+        ) : isQuiz ? (
+          <div style={{
+            fontSize: 8, fontWeight: 900, color: '#34d399',
+            letterSpacing: '0.08em', textTransform: 'uppercase',
+          }}>
+            QUIZ
           </div>
         ) : (
           <div style={{
@@ -299,11 +326,22 @@ export default function StudyIsland() {
   };
 
   const launchLevel = (levelId) => {
+    const level = levels.find((l) => l.id === levelId);
+    const nodeType = level?.node_type || 'learn';
+    
+    if (nodeType === 'quiz') {
+      navigate(`/islands/${island?.id}/quiz/${levelId}`);
+      return;
+    }
+    if (nodeType === 'boss') {
+      navigate(`/islands/${island?.id}/boss/${levelId}`);
+      return;
+    }
+    
     if (!island || isTutorialSkipped()) {
       navigate(`/study/${island?.id}/level/${levelId}`);
       return;
     }
-    const level = levels.find((l) => l.id === levelId);
     const tutorial = getTutorialData(level);
     setTutorialLevel({
       id: levelId,
@@ -459,7 +497,9 @@ export default function StudyIsland() {
                     const completed = isLevelCompleted(progress, island.id, level.id);
                     const lvlUnlocked = actualIdx === 0 || isLevelCompleted(progress, island.id, levels[actualIdx - 1]?.id);
                     const isNext = nextPhraseLevel?.id === level.id;
-                    const boss = isBossLevel(actualIdx, levels.length);
+                    const nodeType = level.node_type || 'learn';
+                    const boss = nodeType === 'boss';
+                    const quiz = nodeType === 'quiz';
 
                     return (
                       <div key={level.id} ref={isNext ? nextLevelRef : null} style={{ position: 'relative', zIndex: 1 }}>
@@ -469,6 +509,7 @@ export default function StudyIsland() {
                           completed={completed}
                           levelUnlocked={lvlUnlocked}
                           isBoss={boss}
+                          isQuiz={quiz}
                           bossInfo={bossInfo}
                           bossIcon={bossIcon}
                           isCurrentNext={isNext}
