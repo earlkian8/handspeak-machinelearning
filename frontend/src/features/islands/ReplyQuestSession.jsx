@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
-  X, Circle, CheckCircle2, AlertCircle, ArrowRight, MessageCircle, Trophy, RefreshCw, Zap,
+  X, Circle, CheckCircle2, AlertCircle, ArrowRight, MessageCircle, Trophy, RefreshCw, Zap, Video,
 } from 'lucide-react';
 import Camera from '../../components/Camera';
 import GestureProcessingModal from '../../components/GestureProcessingModal';
 import TipBox from '../../components/TipBox';
+import TutorialModal from '../../components/TutorialModal';
 import { useIslands } from '../../contexts/IslandsContext';
 import { startConversationSession, submitConversationAttempt } from './conversationApi';
 
@@ -45,6 +46,7 @@ export default function ReplyQuestSession() {
   const [correctPromptIds, setCorrectPromptIds] = useState(() => new Set());
   const [sessionSummary, setSessionSummary] = useState(null);
   const [typeResults, setTypeResults] = useState({ correct: 0, total: 0 });
+  const [showTutorial, setShowTutorial] = useState(false);
 
   const webcamRef = useRef(null);
   const frameBufferRef = useRef([]);
@@ -432,6 +434,24 @@ export default function ReplyQuestSession() {
               {currentPrompt.expected_word.toUpperCase()}
             </div>
           </div>
+
+          <button
+            onClick={() => setShowTutorial(true)}
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%', padding: '9px 14px', borderRadius: 12, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.65)', fontWeight: 800, fontSize: 12, cursor: 'pointer', fontFamily: "'Nunito',sans-serif" }}
+          >
+            <Video size={13} /> How to sign this
+          </button>
+
+          {showTutorial && (
+            <TutorialModal
+              word={currentPrompt.expected_word}
+              displayWord={currentPrompt.expected_word}
+              videoWord={currentPrompt.expected_word}
+              isLetter={false}
+              onProceed={() => setShowTutorial(false)}
+              onSkip={() => setShowTutorial(false)}
+            />
+          )}
 
           {currentPrompt.coaching_tip && (
             <TipBox tip={currentPrompt.coaching_tip} label="Coaching Tip" />
