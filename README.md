@@ -58,10 +58,20 @@ pip install -r requirements.txt
 ```
 
 #### Environment Variables
-You'll need a `.env` file in the `backend/` directory containing your Supabase connection strings or other required environment tokens. Create one based on `env_bootstrap.py` defaults:
+Copy the provided example file and fill in your values:
+```bash
+cp .env.example .env
+```
+
+The `.env.example` file contains all required keys:
 ```env
-DB_URL=postgresql://postgres:[YOUR-PASSWORD]@db.[YOUR-PROJECT-ID].supabase.co:5432/postgres
-# Add any other tokens as needed
+PORT=
+DB_URL=
+SUPABASE_ANON_KEY=
+SUPABASE_STORAGE_KEY=
+SUPABASE_STORAGE_BUCKET=
+SUPABASE_STORAGE_ENDPOINT=
+YOUTUBE_API_KEY=
 ```
 
 ### 3. Frontend Setup
