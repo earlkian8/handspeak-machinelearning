@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { X, Circle, ArrowRight, CheckCircle, Lock, Waves, Zap, BookOpen, PlayCircle, Hand, Trophy, Flame, Bolt, Theater, Landmark, Shield, Heart, MapPin, Crown } from 'lucide-react';
+import { X, Circle, ArrowRight, CheckCircle, Lock, Waves, Zap, BookOpen, PlayCircle, Hand, Trophy, Flame, Bolt, Theater, Landmark, Shield, Heart, MapPin, Crown, Video } from 'lucide-react';
 import TipBox from '../../components/TipBox';
 import Camera from '../../components/Camera';
 import GestureProcessingModal from '../../components/GestureProcessingModal';
 import FeatureIntroModal, { isIntroSeen } from '../../components/FeatureIntroModal';
+import TutorialModal from '../../components/TutorialModal';
 import { postJson } from '../../lib/api';
 import {
   getInitialStudyProgress,
@@ -53,6 +54,7 @@ export default function StudySession() {
   });
   const levelStreakRef = useRef(levelStreak);
   const [showIntro, setShowIntro] = useState(() => !isIntroSeen('level'));
+  const [showTutorial, setShowTutorial] = useState(false);
   const webcamRef = useRef(null);
   const frameBufferRef = useRef([]);
   const isSubmittingRef = useRef(false);
@@ -900,6 +902,14 @@ export default function StudySession() {
             </div>
           )}
 
+          {/* how to sign button */}
+          <button
+            onClick={() => setShowTutorial(true)}
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%', padding: '9px 14px', borderRadius: 12, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.65)', fontWeight: 800, fontSize: 12, cursor: 'pointer', fontFamily: "'Nunito',sans-serif" }}
+          >
+            <Video size={13} /> How to sign this?
+          </button>
+
           {/* action button */}
           <button
             onClick={markComplete}
@@ -925,6 +935,15 @@ export default function StudySession() {
         </div>
       </div>
       </div>
+
+      {showTutorial && (
+        <TutorialModal
+          word={tutorialWord}
+          isLetter={isLetterTarget}
+          onProceed={() => setShowTutorial(false)}
+          onSkip={() => setShowTutorial(false)}
+        />
+      )}
 
       <GestureProcessingModal
         open={showProcessingModal}
